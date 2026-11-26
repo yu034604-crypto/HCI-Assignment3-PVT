@@ -73,10 +73,7 @@
     <h2>Settings · 設定</h2>
     <div class="modes">
       <label class="mode"><input type="checkbox" id="snoreBox" checked> <b>😴 Roommate snoring</b> (cocktail-party distractor)<br>
-        <span class="zh">室友在旁邊打呼（不規則），你要從中專心聽出蚊子聲</span>
-        <div class="slider">Snore volume 打呼音量:
-          <input type="range" id="snoreDb" min="-12" max="6" step="1" value="0">
-          <span id="snoreDbLabel">0 dB (default: snoring louder than the mosquito)</span></div></label>
+        <span class="zh">室友在旁邊打呼（不規則），你要從中專心聽出蚊子聲</span></label>
     </div>
 
     <h2>How to play · 玩法</h2>
@@ -318,8 +315,8 @@ function slapSound(){
      ear, so the snore distracts (informational) rather than masks (energetic)
    ===================================================================== */
 let SNORE_ON = params.get("snore") !== "0";
-let SNORE_DB = parseFloat(params.get("snoredb")) || 0;      // user offset (dB) around the calibrated default
-const SNORE_BASE_DB = 9;                                     // calibrated: median snore ≈ 6-7 dB louder than the whine
+const SNORE_DB = 0;                                           // fixed (no user adjustment)
+const SNORE_BASE_DB = 15;                                     // fixed snore level used in all sessions
 function snoreLinGain(){ return Math.pow(10, (SNORE_BASE_DB + SNORE_DB) / 20); }
 const SN = { bus:null, timer:null, nextT:0, level:0.8, intervals:[], noise:null };
 function makeSnoreBus(ac, dest){
@@ -827,7 +824,7 @@ function showResults(){
   const R = computeMetrics(S.trials), m = R.m;
   const pid = document.getElementById("pid").value.trim() || "anonymous";
   document.getElementById("resSub").textContent =
-    `Participant ${pid} · 🌑 Lights off (auditory) · ${SNORE_ON ? `😴 snoring on (${SNORE_DB >= 0 ? "+" : ""}${SNORE_DB} dB)` : "quiet room"} · ${new Date().toLocaleString()} · session ${(SESSION_MS/60000).toFixed(1)} min`;
+    `Participant ${pid} · 🌑 Lights off (auditory) · ${SNORE_ON ? "😴 snoring on" : "quiet room"} · ${new Date().toLocaleString()} · session ${(SESSION_MS/60000).toFixed(1)} min`;
   const f2 = x => (x == null || isNaN(x)) ? "–" : x.toFixed(2);
 
   const kills = S.trials.filter(t => t.outcome === "squashed").length;
@@ -933,13 +930,13 @@ function stamp(){ const d = new Date(), p = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
 function pidSafe(){ return (document.getElementById("pid").value.trim() || "anonymous").replace(/[^\w-]/g,"_"); }
 document.getElementById("dlTrials").onclick = () => {
-  const head = "trial,mode,snoring_condition,snore_db_offset,status,label,isi_ms,stim_onset_s,rt_ms,premature_ms,outcome,snoring_at_onset";
-  const lines = S.trials.map(t => [t.trial,MODE,SNORE_ON ? "on" : "off",SNORE_ON ? SNORE_DB : "",t.status,t.label,t.isi_ms,t.onset_s.toFixed(3),t.rt_ms,t.premature_ms,t.outcome,t.snore].join(","));
+  const head = "trial,mode,snoring_condition,status,label,isi_ms,stim_onset_s,rt_ms,premature_ms,outcome,snoring_at_onset";
+  const lines = S.trials.map(t => [t.trial,MODE,SNORE_ON ? "on" : "off",t.status,t.label,t.isi_ms,t.onset_s.toFixed(3),t.rt_ms,t.premature_ms,t.outcome,t.snore].join(","));
   download(`nightbite_${MODE}_${pidSafe()}_${stamp()}_trials.csv`, [head, ...lines].join("\n"));
 };
 document.getElementById("dlSummary").onclick = () => {
   const R = computeMetrics(S.trials), m = R.m || {};
-  const rows = [["metric","value"],["mode",MODE],["snoring",SNORE_ON ? "on" : "off"],["snore_db_offset",SNORE_ON ? SNORE_DB : ""],["total_trials",R.total],["valid_trials",R.valid],["error_trials",R.fs+R.lapses],
+  const rows = [["metric","value"],["mode",MODE],["snoring",SNORE_ON ? "on" : "off"],["total_trials",R.total],["valid_trials",R.valid],["error_trials",R.fs+R.lapses],
     ["false_starts",R.fs],["lapses",R.lapses],["1_recipRT_per_s",m.recipRT],["2_recipRT500_per_s",m.recipRT500],
     ["3_recipRT_variability_P90_P10",m.recipVar],["4_falseRT_pct",m.falseRT],["5_lapses_n",m.lapses],["5_lapses_pct",m.lapsePct],
     ["6_fastest10_recip_per_s",m.fastest10],["7_slowest10_recip_per_s",m.slowest10],["mean_RT_ms",m.meanRT],["median_RT_ms",m.medianRT]];
@@ -954,13 +951,6 @@ document.querySelectorAll(".durLabelZh").forEach(e => e.textContent = `${+mins.t
 const snoreBox = document.getElementById("snoreBox");
 snoreBox.checked = SNORE_ON;
 snoreBox.addEventListener("change", () => { SNORE_ON = snoreBox.checked; });
-const snoreDbEl = document.getElementById("snoreDb"), snoreDbLabel = document.getElementById("snoreDbLabel");
-function updSnoreDb(){
-  SNORE_DB = +snoreDbEl.value;
-  snoreDbLabel.textContent = SNORE_DB === 0 ? "0 dB (default: snoring louder than the mosquito)" : `${SNORE_DB > 0 ? "+" : ""}${SNORE_DB} dB vs default`;
-  if (SN.bus && A.ctx) SN.bus.out.gain.setValueAtTime(snoreLinGain(), A.ctx.currentTime);
-}
-snoreDbEl.value = SNORE_DB; snoreDbEl.addEventListener("input", updSnoreDb); updSnoreDb();
 document.getElementById("soundBtn").onclick = () => {
   initAudio(); if (A.ctx.state === "suspended") A.ctx.resume();
   const t = A.ctx.currentTime, gg = A.whineGain.gain;
