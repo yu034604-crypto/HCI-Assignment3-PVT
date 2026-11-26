@@ -6,19 +6,21 @@ HCI Assignment 3 (Autumn 2026) – Vigilance and the Psychomotor Vigilance Test 
 
 ## Task 2 – Night Bite (`index.html`)
 
-A PVT-based game. Late at night, your hand rests under a desk lamp while a mosquito buzzes in the dark.
-When the mosquito lands in the lamp light, press **SPACE** (or tap) to swat it as fast as you can.
+A PVT-based game with two modes (chosen on the start screen, or with `?mode=audio`):
+
+- **Lamp on (visual):** your hand rests under a desk lamp. When the mosquito lands in the lamp light, press **SPACE** (or tap) to swat it.
+- **Lights off (auditory):** the room is dark and nothing changes on screen. When a loud whine suddenly starts at your right ear, press **SPACE** to swat it. Use wired headphones or speakers (Bluetooth adds latency). The RT clock starts when the whine leaves the speakers (onset scheduled with the Web Audio API and mapped to `performance.now()` via `getOutputTimestamp()`).
 
 | Reaction time | Outcome | PVT category |
 |---|---|---|
-| before landing / < 100 ms | slapped yourself | false start |
-| 100–249 ms | squashed | valid |
-| 250–499 ms | maimed (flies away with one wing) | valid |
+| too early / < 100 ms | slapped yourself | false start |
+| 100–299 ms | squashed | valid |
+| 300–499 ms | maimed (flies away with one wing) | valid |
 | ≥ 500 ms | already bitten | lapse |
 
 **PVT mechanics kept from the standard brief PVT**
 
-- Single fixed stimulus location and fixed mosquito size; one response key (simple RT)
+- Single fixed stimulus (fixed location and size in the visual mode; fixed ear, pitch and loudness in the auditory mode); one response key (simple RT)
 - Random inter-stimulus interval, uniform 1–3 s
 - RT measured in ms from the frame in which the mosquito is first drawn to the input event (`performance.now()` time base)
 - False starts (input during the ISI or RT < 100 ms) are logged; lapses (RT ≥ 500 ms) are still timed

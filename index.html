@@ -54,6 +54,9 @@
   #tip{position:absolute;pointer-events:none;background:#000;border:1px solid #444;border-radius:6px;
     padding:6px 9px;font-size:12.5px;color:var(--text);white-space:nowrap;transform:translate(-50%,-115%)}
   .note{font-size:12.5px;color:var(--text2)}
+  .modes{display:flex;gap:12px;flex-wrap:wrap}
+  .mode{flex:1;min-width:260px;background:#111114;border:1px solid #2c2c2c;border-radius:10px;padding:10px 12px;cursor:pointer;font-size:14.5px;line-height:1.55}
+  .mode:has(input:checked){border-color:var(--lamp)}
 </style>
 </head>
 <body>
@@ -65,29 +68,48 @@
     <h1>Night <span>Bite</span> 🦟</h1>
     <p class="sub">A mosquito-swatting Psychomotor Vigilance Test (PVT) &nbsp;·&nbsp; 打蚊子警覺測驗</p>
 
+    <h2>Choose a night · 選擇模式</h2>
+    <div class="modes">
+      <label class="mode"><input type="radio" name="mode" value="visual"> <b>🪔 Lamp on</b> — watch for the mosquito landing on your hand (visual)<br>
+        <span class="zh">檯燈下：看到蚊子停在手上就拍（視覺）</span></label>
+      <label class="mode"><input type="radio" name="mode" value="audio"> <b>🌑 Lights off</b> — listen for the mosquito whining at your ear (auditory)<br>
+        <span class="zh">關燈睡覺：聽到耳邊蚊子聲就拍（聽覺）</span></label>
+    </div>
+
     <h2>How to play · 玩法</h2>
-    <ul>
+    <ul id="howVisual">
       <li>It is late at night. Your hand rests under a desk lamp. A mosquito is buzzing somewhere in the dark.<br>
         <span class="zh">深夜，你的手放在檯燈下，蚊子在黑暗中嗡嗡飛。</span></li>
       <li>The moment the mosquito <b>lands in the lamp light</b>, press <kbd>SPACE</kbd> (or tap the screen) to swat it — as fast as you can.<br>
         <span class="zh">蚊子一停到燈光下的手上，立刻按空白鍵（或點螢幕）拍下去，越快越好。</span></li>
       <li>Don’t swat before it lands — you will only slap your own hand.<br>
         <span class="zh">蚊子還沒停下就拍，只會拍到自己。</span></li>
-      <li>Keep your eyes on the lamp light. The session lasts <b id="durLabel">3 minutes</b>.<br>
-        <span class="zh">眼睛盯著燈光處，全程 <span id="durLabelZh">3 分鐘</span>。</span></li>
+      <li>Keep your eyes on the lamp light. The session lasts <b class="durLabel">3 minutes</b>.<br>
+        <span class="zh">眼睛盯著燈光處，全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
+    </ul>
+    <ul id="howAudio" class="hidden">
+      <li>The lights are off and you are trying to sleep. A mosquito is flying somewhere far away in the room.<br>
+        <span class="zh">燈關了，你正要睡覺，蚊子在房間遠處飛。</span></li>
+      <li>The moment you hear the <b>loud whine right at your ear</b>, press <kbd>SPACE</kbd> (or tap) to swat it — as fast as you can. Nothing changes on screen; use your ears only.<br>
+        <span class="zh">一聽到耳邊突然很大聲的「嗡——」，立刻按空白鍵拍下去。畫面不會有任何提示，只能靠耳朵。</span></li>
+      <li>Don’t swat before you hear it — you will only slap your own ear.<br>
+        <span class="zh">還沒聽到就拍，只會打到自己的耳朵。</span></li>
+      <li><b>Use wired headphones or speakers.</b> Bluetooth headphones add 100–300 ms of delay and will distort your reaction times. The session lasts <b class="durLabel">3 minutes</b>.<br>
+        <span class="zh">請用有線耳機或喇叭，藍牙耳機的延遲會讓反應時間失真。全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
     </ul>
 
     <table class="tiers" aria-label="Outcome by reaction time">
       <tr><th>Reaction time</th><th>Outcome</th></tr>
-      <tr><td>before landing / &lt; 100 ms</td><td>🖐️ Slapped yourself — false start</td></tr>
-      <tr><td>100 – 249 ms</td><td>💀 Squashed! Clean kill</td></tr>
-      <tr><td>250 – 499 ms</td><td>🦟 Maimed — it limps away with one wing</td></tr>
+      <tr><td>too early / &lt; 100 ms</td><td>🖐️ Slapped yourself — false start</td></tr>
+      <tr><td>100 – 299 ms</td><td>💀 Squashed! Clean kill</td></tr>
+      <tr><td>300 – 499 ms</td><td>🦟 Maimed — it limps away with one wing</td></tr>
       <tr><td>≥ 500 ms</td><td>🩸 Too late — it already bit you (lapse)</td></tr>
     </table>
 
     <div class="row">
       <label for="pid">Participant ID</label>
       <input id="pid" type="text" placeholder="e.g. P01" autocomplete="off">
+      <button id="soundBtn" class="secondary">🔊 Sound check</button>
       <button id="startBtn">Start (full screen)</button>
     </div>
     <p class="note" style="margin-top:14px">Use headphones or speakers — the buzz is part of the experience.
@@ -152,7 +174,8 @@
 const params   = new URLSearchParams(location.search);
 const SESSION_MS = (parseFloat(params.get("dur")) || 180) * 1000;
 const ISI_MIN = 1000, ISI_MAX = 3000;
-const MIN_RT = 100, LAPSE_RT = 500, KILL_RT = 250, TIMEOUT_MS = 10000;
+const MIN_RT = 100, LAPSE_RT = 500, KILL_RT = 300, TIMEOUT_MS = 30000;
+let MODE = params.get("mode") === "audio" ? "audio" : "visual";   // visual = lamp, audio = lights off
 const FEEDBACK_MS = 1000;
 
 /* ---------- state ---------- */
@@ -209,6 +232,17 @@ function initAudio(){
   if (pan){ g.connect(pan).connect(ac.destination); } else g.connect(ac.destination);
   osc.start(); lfo.start();
   A.buzzGain = g; A.pan = pan; A.osc = osc;
+  // near-ear whine (auditory stimulus): louder, higher, fixed in the right ear
+  const w = ac.createOscillator(); w.type = "sawtooth"; w.frequency.value = 760;
+  const wl = ac.createOscillator(); wl.frequency.value = 9;
+  const wlg = ac.createGain(); wlg.gain.value = 22; wl.connect(wlg).connect(w.frequency);
+  const wbp = ac.createBiquadFilter(); wbp.type = "bandpass"; wbp.frequency.value = 1500; wbp.Q.value = 0.9;
+  const wg = ac.createGain(); wg.gain.value = 0;
+  w.connect(wbp).connect(wg);
+  if (ac.createStereoPanner){ const wp = ac.createStereoPanner(); wp.pan.value = 0.75; wg.connect(wp).connect(ac.destination); }
+  else wg.connect(ac.destination);
+  w.start(); wl.start();
+  A.whineGain = wg; A.whineOsc = w;
   // noise buffer for slap
   const len = ac.sampleRate * 0.25, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
   for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 3);
@@ -218,7 +252,34 @@ function buzz(on){
   if (!A.ctx) return;
   const t = A.ctx.currentTime;
   A.buzzGain.gain.cancelScheduledValues(t);
-  A.buzzGain.gain.setTargetAtTime(on ? 0.05 : 0, t, on ? 0.08 : 0.008);
+  A.buzzGain.gain.setTargetAtTime(on ? (MODE === "audio" ? 0.018 : 0.05) : 0, t, on ? 0.08 : 0.008);
+}
+// Schedule the whine with an abrupt (5 ms) onset and return its onset in the
+// performance.now() time base, corrected for the browser-reported output latency.
+function scheduleWhine(){
+  const ac = A.ctx, t0 = ac.currentTime + 0.03, gg = A.whineGain.gain;
+  gg.cancelScheduledValues(ac.currentTime); gg.setValueAtTime(0, ac.currentTime);
+  gg.setValueAtTime(0, t0); gg.linearRampToValueAtTime(0.22, t0 + 0.005);
+  A.buzzGain.gain.cancelScheduledValues(ac.currentTime); A.buzzGain.gain.setValueAtTime(A.buzzGain.gain.value, ac.currentTime);
+  A.buzzGain.gain.setValueAtTime(0, t0);
+  const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
+  if (ts && ts.performanceTime > 0) return ts.performanceTime + (t0 - ts.contextTime) * 1000;
+  return performance.now() + (t0 - ac.currentTime + (ac.outputLatency || 0) + (ac.baseLatency || 0)) * 1000;
+}
+function stopWhine(){
+  if (!A.ctx || !A.whineGain) return;
+  const t = A.ctx.currentTime, gg = A.whineGain.gain;
+  gg.cancelScheduledValues(t); gg.setValueAtTime(gg.value, t); gg.setTargetAtTime(0, t, 0.006);
+}
+function fleeSound(){        // maimed mosquito flies away: whine drops in pitch and fades
+  if (!A.ctx) return;
+  const ac = A.ctx, t = ac.currentTime;
+  const o = ac.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(380, t + 0.7);
+  const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1100;
+  const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.06, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+  const p = ac.createStereoPanner ? ac.createStereoPanner() : null;
+  o.connect(f).connect(g); if (p){ p.pan.setValueAtTime(0.7, t); p.pan.linearRampToValueAtTime(-0.8, t + 0.8); g.connect(p).connect(ac.destination); } else g.connect(ac.destination);
+  o.start(t); o.stop(t + 0.85);
 }
 function wanderBuzz(now){
   if (!A.ctx || !A.pan) return;
@@ -265,6 +326,12 @@ function respond(t){             // t = event.timeStamp (performance.now time ba
     logTrial({status:2, label:"false_start", isi_ms:S.isiDur,
       onset_s:((t - S.sessionStart)/1000), rt_ms:0, premature_ms:Math.round(t - S.isiStart), outcome:"slapped_self"});
     showFeedback(t, "fs", null);
+  } else if (S.phase === "stim" && t < S.onset){
+    // audio mode: input before the scheduled whine is actually heard = premature
+    stopWhine();
+    logTrial({status:2, label:"false_start", isi_ms:S.isiDur,
+      onset_s:((t - S.sessionStart)/1000), rt_ms:0, premature_ms:Math.round(t - S.isiStart), outcome:"slapped_self"});
+    showFeedback(t, "fs", null);
   } else if (S.phase === "stim"){
     const rt = t - S.onset;
     let status, label, outcome;
@@ -279,15 +346,17 @@ function respond(t){             // t = event.timeStamp (performance.now time ba
 function showFeedback(t, kind, rt){
   S.phase = "feedback"; S.feedbackUntil = t + FEEDBACK_MS;
   S.fb = { kind, rt, t };
-  S.slapAt = t; slapSound();
+  S.slapAt = t; slapSound(); stopWhine();
+  if (MODE === "audio" && kind === "maimed") fleeSound();
   const g = geom();
   if (kind === "squashed" || kind === "bitten") S.splats.push({x:g.tx, y:g.ty, t, big: kind === "bitten"});
   if (kind === "bitten") S.bumps.push({ dx: rand(-0.55, 0.35), dy: rand(0.05, 0.9), t });
   if (kind === "maimed") S.flyAway = { t };
-  if (kind !== "fs" && kind !== "anticipation") buzz(false);
+  if (kind === "fs" && MODE === "audio") buzz(true);           // far-away buzz resumes
+  else if (kind !== "fs" && kind !== "anticipation") buzz(false);
 }
 function endSession(){
-  S.phase = "done"; buzz(false);
+  S.phase = "done"; buzz(false); stopWhine();
   document.body.classList.remove("playing");
   if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   showResults();
@@ -309,8 +378,12 @@ function frame(now){
     wanderBuzz(now);
     if (elapsed(now) >= SESSION_MS){ endSession(); }
     else if (now - S.isiStart >= S.isiDur){
-      S.phase = "stim"; S.onset = now;          // stimulus is drawn in THIS frame
-      buzz(false);                              // a landed mosquito stops buzzing
+      if (MODE === "audio"){
+        S.phase = "stim"; S.onset = scheduleWhine();   // onset = when the whine leaves the speakers
+      } else {
+        S.phase = "stim"; S.onset = now;          // stimulus is drawn in THIS frame
+        buzz(false);                              // a landed mosquito stops buzzing
+      }
     }
   } else if (S.phase === "stim"){
     if (now - S.onset >= TIMEOUT_MS){            // no response at all: log as lapse at the cap
@@ -328,6 +401,7 @@ requestAnimationFrame(frame);
 
 /* ---------- drawing ---------- */
 function draw(now){
+  if (MODE === "audio") return drawAudioScene(now);
   const g = geom();
   ctx.fillStyle = "#07070b"; ctx.fillRect(0,0,W,H);
 
@@ -375,6 +449,47 @@ function draw(now){
   ctx.beginPath(); ctx.arc(g.cx, g.cy, g.R*0.95, 0, 7); ctx.stroke(); ctx.setLineDash([]);
 
   drawFeedback(g, now);
+  drawHUD(now);
+}
+
+/* Lights-off scene: static and dark. NOTHING on screen changes at stimulus onset. */
+function drawAudioScene(now){
+  const g = geom(), R = g.R, ex = g.cx, ey = H*0.52;
+  ctx.fillStyle = "#040407"; ctx.fillRect(0,0,W,H);
+  // pillow
+  ctx.fillStyle = "#0d0f16"; ctx.beginPath(); ctx.ellipse(ex - R*0.2, ey + R*0.25, R*2.4, R*1.1, -0.05, 0, 7); ctx.fill();
+  // moonlit window (constant)
+  ctx.fillStyle = "rgba(120,140,190,0.07)"; ctx.fillRect(W*0.78, H*0.10, W*0.12, H*0.22);
+  ctx.strokeStyle = "rgba(120,140,190,0.12)"; ctx.lineWidth = 2; ctx.strokeRect(W*0.78, H*0.10, W*0.12, H*0.22);
+  ctx.beginPath(); ctx.moveTo(W*0.84, H*0.10); ctx.lineTo(W*0.84, H*0.32); ctx.stroke();
+  // ear (dim, rim-lit by the moon)
+  ctx.save(); ctx.translate(ex, ey); ctx.scale(R/100, R/100);
+  ctx.fillStyle = "#2a211e"; ctx.strokeStyle = "rgba(140,160,210,0.45)"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-10,-80);
+  ctx.bezierCurveTo(45,-95, 70,-40, 55,5); ctx.bezierCurveTo(45,40, 25,45, 20,70);
+  ctx.bezierCurveTo(15,95, -20,95, -25,70); ctx.bezierCurveTo(-30,40, -45,20, -42,-20);
+  ctx.bezierCurveTo(-40,-55, -30,-75, -10,-80); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "rgba(140,160,210,0.25)"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-15,-55); ctx.bezierCurveTo(25,-65, 40,-25, 25,5); ctx.bezierCurveTo(15,20, 0,15, -5,30); ctx.stroke();
+  ctx.fillStyle = "#120d0c"; ctx.beginPath(); ctx.ellipse(-8, 10, 12, 16, 0.2, 0, 7); ctx.fill();
+  ctx.restore();
+  // bites on the ear
+  for (const b of S.bumps){
+    const k = Math.min(1, (now - b.t)/400), bx = ex + (b.dx*0.6)*R, by = ey + (b.dy - 0.45)*R*1.2;
+    ctx.fillStyle = `rgba(200,70,70,${0.5*k})`; ctx.beginPath(); ctx.ellipse(bx, by, R*0.06*k, R*0.05*k, 0, 0, 7); ctx.fill();
+  }
+  S.splats = S.splats.filter(s => now - s.t < 6000);
+  for (const s of S.splats){
+    ctx.fillStyle = `rgba(150,10,15,${0.7*(1 - (now - s.t)/6000)})`; blob(ex + R*0.25, ey - R*0.2, R*(s.big?0.07:0.045), s.t);
+  }
+  drawSlap({ ...g, tx: ex + R*0.25, ty: ey - R*0.2 }, now);
+  // after-response visuals only (feedback), never during the stimulus
+  if (S.phase === "feedback" && S.fb && (S.fb.kind === "squashed" || S.fb.kind === "bitten") && now - S.fb.t > 140){
+    ctx.save(); ctx.translate(ex + R*0.25, ey - R*0.2); ctx.scale(1, 0.45); ctx.translate(-(ex + R*0.25), -(ey - R*0.2));
+    drawMosquito(ex + R*0.25, ey - R*0.2, R*0.3, { blood: S.fb.kind === "bitten" ? 1 : 0.1, wings:1, angle:-0.1 });
+    ctx.restore();
+  }
+  drawFeedback({ ...g, cy: ey + R*0.35 }, now);
   drawHUD(now);
 }
 
@@ -519,7 +634,8 @@ const FB_TEXT = {
 };
 function drawFeedback(g, now){
   if (S.phase !== "feedback" || !S.fb) return;
-  const [title, sub, col] = FB_TEXT[S.fb.kind];
+  let [title, sub, col] = FB_TEXT[S.fb.kind];
+  if (MODE === "audio" && S.fb.kind === "fs") sub = "You slapped your own ear";
   const y = g.cy - g.R*1.45;
   ctx.textAlign = "center";
   ctx.fillStyle = col; ctx.font = `700 ${Math.round(g.R*0.26)}px "Segoe UI",system-ui,sans-serif`;
@@ -578,13 +694,13 @@ function showResults(){
   const R = computeMetrics(S.trials), m = R.m;
   const pid = document.getElementById("pid").value.trim() || "anonymous";
   document.getElementById("resSub").textContent =
-    `Participant ${pid} · ${new Date().toLocaleString()} · session ${(SESSION_MS/60000).toFixed(1)} min`;
+    `Participant ${pid} · ${MODE === "audio" ? "🌑 Lights off (auditory)" : "🪔 Lamp on (visual)"} · ${new Date().toLocaleString()} · session ${(SESSION_MS/60000).toFixed(1)} min`;
   const f2 = x => (x == null || isNaN(x)) ? "–" : x.toFixed(2);
 
   const kills = S.trials.filter(t => t.outcome === "squashed").length;
   const maim  = S.trials.filter(t => t.outcome === "maimed").length;
   document.getElementById("tally").innerHTML = [
-    ["💀", kills, "squashed (< 250 ms)"], ["🦟", maim, "maimed (250–499 ms)"],
+    ["💀", kills, "squashed (< 300 ms)"], ["🦟", maim, "maimed (300–499 ms)"],
     ["🩸", R.lapses, "bites (lapses ≥ 500 ms)"], ["🖐️", R.fs, "slapped yourself (false starts)"]
   ].map(([i,n,l]) => `<div class="tile"><div class="n">${i} ${n}</div><div class="l">${l}</div></div>`).join("");
 
@@ -673,24 +789,38 @@ function stamp(){ const d = new Date(), p = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
 function pidSafe(){ return (document.getElementById("pid").value.trim() || "anonymous").replace(/[^\w-]/g,"_"); }
 document.getElementById("dlTrials").onclick = () => {
-  const head = "trial,status,label,isi_ms,stim_onset_s,rt_ms,premature_ms,outcome";
-  const lines = S.trials.map(t => [t.trial,t.status,t.label,t.isi_ms,t.onset_s.toFixed(3),t.rt_ms,t.premature_ms,t.outcome].join(","));
-  download(`nightbite_${pidSafe()}_${stamp()}_trials.csv`, [head, ...lines].join("\n"));
+  const head = "trial,mode,status,label,isi_ms,stim_onset_s,rt_ms,premature_ms,outcome";
+  const lines = S.trials.map(t => [t.trial,MODE,t.status,t.label,t.isi_ms,t.onset_s.toFixed(3),t.rt_ms,t.premature_ms,t.outcome].join(","));
+  download(`nightbite_${MODE}_${pidSafe()}_${stamp()}_trials.csv`, [head, ...lines].join("\n"));
 };
 document.getElementById("dlSummary").onclick = () => {
   const R = computeMetrics(S.trials), m = R.m || {};
-  const rows = [["metric","value"],["total_trials",R.total],["valid_trials",R.valid],["error_trials",R.fs+R.lapses],
+  const rows = [["metric","value"],["mode",MODE],["total_trials",R.total],["valid_trials",R.valid],["error_trials",R.fs+R.lapses],
     ["false_starts",R.fs],["lapses",R.lapses],["1_recipRT_per_s",m.recipRT],["2_recipRT500_per_s",m.recipRT500],
     ["3_recipRT_variability_P90_P10",m.recipVar],["4_falseRT_pct",m.falseRT],["5_lapses_n",m.lapses],["5_lapses_pct",m.lapsePct],
     ["6_fastest10_recip_per_s",m.fastest10],["7_slowest10_recip_per_s",m.slowest10],["mean_RT_ms",m.meanRT],["median_RT_ms",m.medianRT]];
-  download(`nightbite_${pidSafe()}_${stamp()}_summary.csv`,
+  download(`nightbite_${MODE}_${pidSafe()}_${stamp()}_summary.csv`,
     rows.map(([a,b]) => `${a},${typeof b === "number" ? +b.toFixed(4) : b}`).join("\n"));
 };
 
 /* ---------- screens ---------- */
 const mins = SESSION_MS / 60000;
-document.getElementById("durLabel").textContent = mins === 3 ? "3 minutes" : `${+mins.toFixed(2)} minutes`;
-document.getElementById("durLabelZh").textContent = `${+mins.toFixed(2)} 分鐘`;
+document.querySelectorAll(".durLabel").forEach(e => e.textContent = mins === 3 ? "3 minutes" : `${+mins.toFixed(2)} minutes`);
+document.querySelectorAll(".durLabelZh").forEach(e => e.textContent = `${+mins.toFixed(2)} 分鐘`);
+function setMode(m){
+  MODE = m;
+  document.querySelector(`input[name=mode][value=${m}]`).checked = true;
+  document.getElementById("howVisual").classList.toggle("hidden", m !== "visual");
+  document.getElementById("howAudio").classList.toggle("hidden", m !== "audio");
+}
+document.querySelectorAll("input[name=mode]").forEach(r => r.addEventListener("change", () => setMode(r.value)));
+setMode(MODE);
+document.getElementById("soundBtn").onclick = () => {
+  initAudio(); if (A.ctx.state === "suspended") A.ctx.resume();
+  const t = A.ctx.currentTime, gg = A.whineGain.gain;
+  gg.cancelScheduledValues(t); gg.setValueAtTime(0, t); gg.linearRampToValueAtTime(0.22, t + 0.005);
+  gg.setValueAtTime(0.22, t + 0.7); gg.linearRampToValueAtTime(0, t + 0.72);
+};
 document.getElementById("startBtn").onclick = async () => {
   document.getElementById("startScreen").classList.add("hidden");
   try { await document.documentElement.requestFullscreen(); } catch(e) {}
