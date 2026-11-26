@@ -1,4 +1,4 @@
-# Night Bite – a Mosquito-Swatting PVT
+# Night Bite: Lights Off
 
 HCI Assignment 3 (Autumn 2026) – Vigilance and the Psychomotor Vigilance Test (PVT)
 
@@ -6,52 +6,18 @@ HCI Assignment 3 (Autumn 2026) – Vigilance and the Psychomotor Vigilance Test 
 
 ## Task 2 – Night Bite: Lights Off (`index.html`)
 
-An **auditory** PVT game with a cocktail-party distractor. The room is dark and you are trying to sleep.
-A mosquito flies somewhere far away while your roommate on the left is snoring. When a loud whine suddenly
-starts at your **right ear**, press **SPACE** (or tap) to swat it as fast as you can. Nothing changes on screen
-at stimulus onset – the task relies on hearing only.
+Night Bite: Lights Off turns the PVT into a bedtime scene. In a dark room, players listen for a mosquito; when its loud whine suddenly appears, they press SPACE to swat it. This reduces the monotony of the PVT while keeping its core mechanics: the mosquito's sound appears after a random interval of 1–3 s, and the game records the player's reaction time in milliseconds. Each swat is graded by reaction time: pressing too early or under 100 ms slaps your own ear (false start), 100–299 ms squashes the mosquito, 300–499 ms only maims it, and 500 ms or more means it has already bitten you (lapse). Each session lasts 3 minutes and ends with the seven PVT scores.
 
-| Reaction time | Outcome | PVT category |
-|---|---|---|
-| too early / < 100 ms | slapped your own ear | false start |
-| 100–299 ms | squashed | valid |
-| 300–499 ms | maimed (flies away with one wing) | valid |
-| ≥ 500 ms | already bitten | lapse |
+An irregular snoring roommate is heard throughout, applying the cocktail party effect. Players must use selective attention to filter background noise and detect the mosquito. Because similar frequencies are hard to distinguish, the snoring is kept away from the whine's frequencies. The whine is therefore always audible, even through laptop speakers, and slower responses reflect distraction rather than a sound that cannot be heard.
 
-**PVT mechanics kept from the standard brief PVT**
+This design replaces the visual counter with an auditory stimulus, reducing visual load. In addition, the slap sound and RT feedback appear within one perceptual processor cycle (Tp ~100 ms), so perceptual fusion makes the response feel like the cause of the kill.
 
-- One stimulus (the near-ear whine: fixed ear, pitch and loudness, 5 ms onset ramp) and one response key → simple RT
-- Random inter-stimulus interval, uniform 1–3 s; 1 s feedback; response window up to 30 s
-- RT is measured from when the whine leaves the speakers (Web Audio onset mapped to `performance.now()` with `getOutputTimestamp()`) to the key event
-- False starts (input before the whine is heard, or RT < 100 ms) are logged; lapses (RT ≥ 500 ms) are still timed
-- 3-minute session, followed by the 7 PVT metrics from Lecture 6
-  (1/RT, 1/RT500, 1/RT variability, False RT, Lapses, Fastest 10%, Slowest 10%), an RT chart and CSV export
-
-**Snoring roommate (cocktail-party effect)**
-
-- Every snore is synthesised anew: duration, pitch and pitch contour, loudness, roughness and resonance are randomised,
-  with irregular breathing gaps, occasional pauses, double snores and snorts, and a slow loudness drift
-- Snore timing is independent of the mosquito ISI, so it cannot cue the stimulus
-- The snore is broadband (low throat rumble plus high turbulent hiss up to ~5 kHz) and **louder than the mosquito**:
-  in offline renders the median snore peak is ~6.6 dB above the whine. The player must filter out the noise and
-  focus on the target sound (cocktail-party effect). A start-screen slider adjusts the level by −12 to +6 dB (logged in the CSV)
-- Narrow notches at the whine's harmonics (k × 760 Hz) keep the whine 13–22 dB above even the loudest snore at its own
-  frequencies, so it is always audible: slower RTs reflect distraction, not inaudibility
-- Each trial records whether the roommate was snoring at mosquito onset; the summary compares RTs for snoring vs quiet onsets
-- Can be switched off on the start screen (or with `?snore=0`) for a quiet-room comparison
-
-**How to run:** open `index.html` in Chrome (no installation needed). Use the computer's built-in keyboard and
-wired headphones or built-in speakers – Bluetooth keyboards and speakers add latency the browser cannot measure
-(in pilot tests, Bluetooth audio added ~120 ms and a Bluetooth keyboard ~75 ms to RTs).
-For a short test, append `?dur=30` to the URL to run a 30-second session.
+**How to run:** open `index.html` in Chrome, or use the link above. Use the laptop's built-in keyboard and speakers.
 
 ## Task 1 – PVT-B analysis (`pvtb_analysis.py`)
 
-Computes the trial statistics and the 7 PVT metrics from a PsyToolkit `pvtb` raw data file.
+Computes the trial statistics and the seven PVT scores from a PsyToolkit `pvtb` raw data file.
 
 ```
-pip install numpy pandas
 python pvtb_analysis.py pvtb.data.2026-xxxx.txt
 ```
-
-Outputs the tables to the console and saves `task1_trial_counts.csv` and `task1_pvt_metrics.csv`.
