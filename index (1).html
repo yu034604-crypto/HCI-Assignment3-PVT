@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Bite – a Mosquito PVT</title>
+<style>
+  :root{
+    --bg:#07070b; --surface:#191919; --text:#efefef; --text2:#9c9c9c;
+    --lamp:#ffd98a; --valid:#338ced; --fs:#fbb315; --lapse:#dc3c3d;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:"Segoe UI",system-ui,-apple-system,"Noto Sans TC",sans-serif;overflow:hidden}
+  canvas#game{position:fixed;inset:0;width:100vw;height:100vh;display:block;touch-action:none}
+  body.playing{cursor:none}
+  .overlay{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;
+    background:rgba(7,7,11,.86);overflow:auto;padding:24px}
+  .hidden{display:none!important}
+  .card{background:var(--surface);border:1px solid #2c2c2c;border-radius:14px;
+    max-width:860px;width:100%;margin:auto;padding:28px 32px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  h1{margin:0 0 4px;font-size:30px;letter-spacing:.5px}
+  h1 span{color:var(--lamp)}
+  h2{font-size:17px;margin:22px 0 8px;color:var(--lamp);font-weight:600}
+  p,li{line-height:1.6;color:#d8d8d8;font-size:15px}
+  .sub{color:var(--text2);margin:0 0 14px}
+  .zh{color:var(--text2);font-size:14px}
+  table.tiers{border-collapse:collapse;width:100%;margin:6px 0 4px;font-size:14px}
+  table.tiers td,table.tiers th{padding:6px 10px;border-bottom:1px solid #2c2c2c;text-align:left}
+  table.tiers th{color:var(--text2);font-weight:500}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:18px}
+  input[type=text]{background:#0f0f12;border:1px solid #3a3a3a;color:var(--text);border-radius:8px;
+    padding:10px 12px;font-size:15px;width:220px}
+  button{background:var(--lamp);color:#1a1405;border:0;border-radius:8px;padding:11px 20px;
+    font-size:15px;font-weight:700;cursor:pointer}
+  button.secondary{background:#2a2a2e;color:var(--text);font-weight:600}
+  button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+  kbd{background:#2a2a2e;border:1px solid #444;border-radius:4px;padding:1px 6px;font-size:13px}
+  /* results */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:720px){.grid{grid-template-columns:1fr}}
+  table.res{border-collapse:collapse;width:100%;font-size:14px}
+  table.res td{padding:6px 8px;border-bottom:1px solid #2c2c2c;vertical-align:top}
+  table.res td.v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+  table.res td.d{color:var(--text2);font-size:12.5px}
+  .tally{display:flex;gap:10px;flex-wrap:wrap}
+  .tile{flex:1;min-width:120px;background:#111114;border:1px solid #2c2c2c;border-radius:10px;padding:10px 12px}
+  .tile .n{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+  .tile .l{font-size:12.5px;color:var(--text2)}
+  .chartwrap{position:relative;margin-top:6px}
+  #rtChart{width:100%;height:240px;display:block}
+  .legend{display:flex;gap:16px;font-size:13px;color:var(--text2);margin:4px 0 0}
+  .legend i{display:inline-block;width:10px;height:10px;margin-right:6px;vertical-align:middle}
+  #tip{position:absolute;pointer-events:none;background:#000;border:1px solid #444;border-radius:6px;
+    padding:6px 9px;font-size:12.5px;color:var(--text);white-space:nowrap;transform:translate(-50%,-115%)}
+  .note{font-size:12.5px;color:var(--text2)}
+  .modes{display:flex;gap:12px;flex-wrap:wrap}
+  .mode{flex:1;min-width:260px;background:#111114;border:1px solid #2c2c2c;border-radius:10px;padding:10px 12px;cursor:pointer;font-size:14.5px;line-height:1.55}
+  .mode:has(input:checked){border-color:var(--lamp)}
+  .slider{margin-top:8px;font-size:13.5px;color:var(--text2);display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .slider input{accent-color:#ffd98a;width:180px}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- ================= START SCREEN ================= -->
+<div id="startScreen" class="overlay">
+  <div class="card">
+    <h1>Night <span>Bite</span> 🦟</h1>
+    <p class="sub">An auditory Psychomotor Vigilance Test (PVT) with a snoring roommate &nbsp;·&nbsp; 聽覺版打蚊子警覺測驗</p>
+
+    <h2>Settings · 設定</h2>
+    <div class="modes">
+      <label class="mode"><input type="checkbox" id="snoreBox" checked> <b>😴 Roommate snoring</b> (cocktail-party distractor, left side)<br>
+        <span class="zh">室友在你左邊打呼（不規則），你要從中專心聽出右耳邊的蚊子聲</span>
+        <div class="slider">Snore volume 打呼音量:
+          <input type="range" id="snoreDb" min="-12" max="6" step="1" value="0">
+          <span id="snoreDbLabel">0 dB (default: median snore ≈ mosquito, TMR ≈ 0 dB)</span></div></label>
+    </div>
+
+    <h2>How to play · 玩法</h2>
+    <ul id="howVisual" class="hidden">
+      <li>It is late at night. Your hand rests under a desk lamp. A mosquito is buzzing somewhere in the dark.<br>
+        <span class="zh">深夜，你的手放在檯燈下，蚊子在黑暗中嗡嗡飛。</span></li>
+      <li>The moment the mosquito <b>lands in the lamp light</b>, press <kbd>SPACE</kbd> (or tap the screen) to swat it — as fast as you can.<br>
+        <span class="zh">蚊子一停到燈光下的手上，立刻按空白鍵（或點螢幕）拍下去，越快越好。</span></li>
+      <li>Don’t swat before it lands — you will only slap your own hand.<br>
+        <span class="zh">蚊子還沒停下就拍，只會拍到自己。</span></li>
+      <li>Keep your eyes on the lamp light. The session lasts <b class="durLabel">3 minutes</b>.<br>
+        <span class="zh">眼睛盯著燈光處，全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
+    </ul>
+    <ul id="howAudio">
+      <li>The lights are off and you are trying to sleep. A mosquito is flying somewhere far away in the room, and your roommate on the left is snoring.<br>
+        <span class="zh">燈關了，你正要睡覺，蚊子在房間遠處飛，左邊的室友在打呼。</span></li>
+      <li>The moment you hear the <b>loud whine right at your ear</b>, press <kbd>SPACE</kbd> (or tap) to swat it — as fast as you can. Nothing changes on screen; use your ears only.<br>
+        <span class="zh">一聽到耳邊突然很大聲的「嗡——」，立刻按空白鍵拍下去。畫面不會有任何提示，只能靠耳朵。</span></li>
+      <li>Don’t swat before you hear it — you will only slap your own ear.<br>
+        <span class="zh">還沒聽到就拍，只會打到自己的耳朵。</span></li>
+      <li><b>Use wired headphones or speakers.</b> Bluetooth headphones add 100–300 ms of delay and will distort your reaction times. The session lasts <b class="durLabel">3 minutes</b>.<br>
+        <span class="zh">請用有線耳機或喇叭，藍牙耳機的延遲會讓反應時間失真。全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
+    </ul>
+
+    <table class="tiers" aria-label="Outcome by reaction time">
+      <tr><th>Reaction time</th><th>Outcome</th></tr>
+      <tr><td>too early / &lt; 100 ms</td><td>🖐️ Slapped yourself — false start</td></tr>
+      <tr><td>100 – 299 ms</td><td>💀 Squashed! Clean kill</td></tr>
+      <tr><td>300 – 499 ms</td><td>🦟 Maimed — it limps away with one wing</td></tr>
+      <tr><td>≥ 500 ms</td><td>🩸 Too late — it already bit you (lapse)</td></tr>
+    </table>
+
+    <div class="row">
+      <label for="pid">Participant ID</label>
+      <input id="pid" type="text" placeholder="e.g. P01" autocomplete="off">
+      <button id="soundBtn" class="secondary">🔊 Sound check (mosquito + snore)</button>
+      <button id="startBtn">Start (full screen)</button>
+    </div>
+    <p class="note" style="margin-top:14px">Use headphones or speakers — the buzz is part of the experience.
+      Stay on this tab; switching windows will distort the timing.</p>
+  </div>
+</div>
+
+<!-- ================= RESULTS SCREEN ================= -->
+<div id="resultScreen" class="overlay hidden">
+  <div class="card">
+    <h1>Night Report <span>🌙</span></h1>
+    <p class="sub" id="resSub"></p>
+
+    <div class="tally" id="tally"></div>
+
+    <div class="grid">
+      <div>
+        <h2>PVT performance summary (7 standard metrics)</h2>
+        <table class="res" id="metricsTable"></table>
+      </div>
+      <div>
+        <h2>Basic trial statistics</h2>
+        <table class="res" id="countsTable"></table>
+        <p class="note" style="margin-top:10px">RT metrics use all responses with RT ≥ 100 ms
+          (valid + lapses). 1/RT is in 1/seconds (= 1000 / RT ms). Lapse threshold 500 ms.</p>
+      </div>
+    </div>
+
+    <div id="snoreSection">
+      <h2>Cocktail-party check: was the roommate snoring when the mosquito arrived?</h2>
+      <table class="res" id="snoreTable"></table>
+    </div>
+
+    <h2>Reaction time across the session</h2>
+    <div class="chartwrap">
+      <canvas id="rtChart" aria-label="Reaction time per trial over the session"></canvas>
+      <div id="tip" class="hidden"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--valid);border-radius:50%"></i>Valid (100–499 ms)</span>
+      <span><i style="background:var(--lapse)"></i>Lapse (≥ 500 ms)</span>
+      <span><i style="background:var(--fs);clip-path:polygon(50% 0,100% 100%,0 100%)"></i>False start</span>
+    </div>
+
+    <div class="row">
+      <button id="dlTrials">Download trial data (CSV)</button>
+      <button id="dlSummary" class="secondary">Download summary (CSV)</button>
+      <button id="againBtn" class="secondary">Play again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Night Bite – Mosquito PVT
+   Core PVT mechanics (kept identical to the standard brief PVT):
+     • single fixed stimulus location, single response (SPACE / tap)
+     • random ISI, uniform 1000–3000 ms
+     • RT = response event timestamp − timestamp of the frame in which the
+       mosquito is first drawn (performance.now() time base)
+     • false start = response during the ISI or RT < 100 ms
+     • lapse = RT ≥ 500 ms; responses are still timed after 500 ms
+     • session length ≥ 3 min (URL ?dur=seconds overrides, for testing)
+   ===================================================================== */
+
+const params   = new URLSearchParams(location.search);
+const SESSION_MS = (parseFloat(params.get("dur")) || 180) * 1000;
+const ISI_MIN = 1000, ISI_MAX = 3000;
+const MIN_RT = 100, LAPSE_RT = 500, KILL_RT = 300, TIMEOUT_MS = 30000;
+let MODE = "audio";   // this edition is auditory only (visual drawing code kept for reference)
+const FEEDBACK_MS = 1000;
+
+/* ---------- state ---------- */
+const S = {
+  phase: "idle",          // idle | isi | stim | feedback | done
+  sessionStart: 0,
+  isiStart: 0, isiDur: 0,
+  onset: 0,               // frame timestamp when stimulus was first drawn
+  pendingOnset: false,
+  feedbackUntil: 0,
+  trials: [],
+  fb: null,               // current feedback descriptor
+  slapAt: -1,             // time of last slap animation
+  bumps: [],              // bite bumps on the arm
+  splats: [],             // blood stains (fade)
+  flyAway: null,          // maimed mosquito animation
+  dust: [],
+};
+
+/* ---------- canvas ---------- */
+const cv = document.getElementById("game");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+function resize(){
+  DPR = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener("resize", resize); resize();
+
+function geom(){
+  const R  = Math.min(W, H) * 0.20;          // lamp pool radius
+  const cx = W / 2, cy = H * 0.60;
+  return { R, cx, cy, tx: cx + R*0.05, ty: cy - R*0.10 };   // tx,ty = fixed landing spot
+}
+for (let i = 0; i < 40; i++) S.dust.push({x:Math.random(), y:Math.random(), s:Math.random()*1.4+0.4, v:Math.random()*0.006+0.002});
+
+/* ---------- audio (Web Audio) ---------- */
+const A = { ctx:null };
+function initAudio(){
+  if (A.ctx) return;
+  const ac = new (window.AudioContext || window.webkitAudioContext)();
+  A.ctx = ac;
+  // mosquito buzz: sawtooth + vibrato + band-pass, wandering stereo position
+  const osc = ac.createOscillator(); osc.type = "sawtooth"; osc.frequency.value = 610;
+  const lfo = ac.createOscillator(); lfo.frequency.value = 7;
+  const lfoGain = ac.createGain(); lfoGain.gain.value = 18;
+  lfo.connect(lfoGain).connect(osc.frequency);
+  const bp = ac.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 1100; bp.Q.value = 1.2;
+  const pan = ac.createStereoPanner ? ac.createStereoPanner() : null;
+  const g = ac.createGain(); g.gain.value = 0;
+  osc.connect(bp).connect(g);
+  if (pan){ g.connect(pan).connect(ac.destination); } else g.connect(ac.destination);
+  osc.start(); lfo.start();
+  A.buzzGain = g; A.pan = pan; A.osc = osc;
+  // near-ear whine (auditory stimulus): louder, higher, fixed in the right ear
+  const w = ac.createOscillator(); w.type = "sawtooth"; w.frequency.value = 760;
+  const wl = ac.createOscillator(); wl.frequency.value = 9;
+  const wlg = ac.createGain(); wlg.gain.value = 22; wl.connect(wlg).connect(w.frequency);
+  const wbp = ac.createBiquadFilter(); wbp.type = "bandpass"; wbp.frequency.value = 1500; wbp.Q.value = 0.9;
+  const wg = ac.createGain(); wg.gain.value = 0;
+  w.connect(wbp).connect(wg);
+  if (ac.createStereoPanner){ const wp = ac.createStereoPanner(); wp.pan.value = 0.75; wg.connect(wp).connect(ac.destination); }
+  else wg.connect(ac.destination);
+  w.start(); wl.start();
+  A.whineGain = wg; A.whineOsc = w;
+  // noise buffer for slap
+  const len = ac.sampleRate * 0.25, buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1 - i/len, 3);
+  A.noise = buf;
+}
+function buzz(on){
+  if (!A.ctx) return;
+  const t = A.ctx.currentTime;
+  A.buzzGain.gain.cancelScheduledValues(t);
+  A.buzzGain.gain.setTargetAtTime(on ? (MODE === "audio" ? 0.018 : 0.05) : 0, t, on ? 0.08 : 0.008);
+}
+// Schedule the whine with an abrupt (5 ms) onset and return its onset in the
+// performance.now() time base, corrected for the browser-reported output latency.
+function scheduleWhine(){
+  const ac = A.ctx, t0 = ac.currentTime + 0.03, gg = A.whineGain.gain;
+  gg.cancelScheduledValues(ac.currentTime); gg.setValueAtTime(0, ac.currentTime);
+  gg.setValueAtTime(0, t0); gg.linearRampToValueAtTime(0.22, t0 + 0.005);
+  S.onsetCtx = t0;
+  A.buzzGain.gain.cancelScheduledValues(ac.currentTime); A.buzzGain.gain.setValueAtTime(A.buzzGain.gain.value, ac.currentTime);
+  A.buzzGain.gain.setValueAtTime(0, t0);
+  const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
+  if (ts && ts.performanceTime > 0) return ts.performanceTime + (t0 - ts.contextTime) * 1000;
+  return performance.now() + (t0 - ac.currentTime + (ac.outputLatency || 0) + (ac.baseLatency || 0)) * 1000;
+}
+function stopWhine(){
+  if (!A.ctx || !A.whineGain) return;
+  const t = A.ctx.currentTime, gg = A.whineGain.gain;
+  gg.cancelScheduledValues(t); gg.setValueAtTime(gg.value, t); gg.setTargetAtTime(0, t, 0.006);
+}
+function fleeSound(){        // maimed mosquito flies away: whine drops in pitch and fades
+  if (!A.ctx) return;
+  const ac = A.ctx, t = ac.currentTime;
+  const o = ac.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(700, t); o.frequency.exponentialRampToValueAtTime(380, t + 0.7);
+  const f = ac.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 1100;
+  const g = ac.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.06, t + 0.15); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.8);
+  const p = ac.createStereoPanner ? ac.createStereoPanner() : null;
+  o.connect(f).connect(g); if (p){ p.pan.setValueAtTime(0.7, t); p.pan.linearRampToValueAtTime(-0.8, t + 0.8); g.connect(p).connect(ac.destination); } else g.connect(ac.destination);
+  o.start(t); o.stop(t + 0.85);
+}
+function wanderBuzz(now){
+  if (!A.ctx || !A.pan) return;
+  // slow, stimulus-independent wandering (not a cue)
+  A.pan.pan.value = Math.sin(now/1700) * 0.7 + Math.sin(now/530) * 0.2;
+  A.osc.frequency.value = 600 + Math.sin(now/900) * 25;
+}
+function slapSound(){
+  if (!A.ctx) return;
+  const ac = A.ctx, t = ac.currentTime;
+  const src = ac.createBufferSource(); src.buffer = A.noise;
+  const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2600;
+  const g = ac.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+  src.connect(lp).connect(g).connect(ac.destination); src.start(t);
+  const o = ac.createOscillator(); o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(60, t+0.12);
+  const og = ac.createGain(); og.gain.setValueAtTime(0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t+0.15);
+  o.connect(og).connect(ac.destination); o.start(t); o.stop(t+0.16);
+}
+
+/* =====================================================================
+   Snoring roommate (cocktail-party distractor)
+   • every snore is synthesised fresh: duration, pitch, pitch contour, loudness,
+     roughness and resonance are all randomised, plus irregular breathing gaps,
+     occasional pauses, double snores and snorts, and a slow loudness drift
+   • timing is independent of the mosquito ISI (cannot cue the stimulus)
+   • low-passed at 900 Hz and panned left; the whine is high-band at the right
+     ear, so the snore distracts (informational) rather than masks (energetic)
+   ===================================================================== */
+let SNORE_ON = params.get("snore") !== "0";
+let SNORE_DB = parseFloat(params.get("snoredb")) || 0;      // user offset (dB) around the calibrated default
+const SNORE_BASE_DB = 3;                                     // calibrated so the median snore ≈ whine level (TMR ≈ 0 dB)
+function snoreLinGain(){ return Math.pow(10, (SNORE_BASE_DB + SNORE_DB) / 20); }
+const SN = { bus:null, timer:null, nextT:0, level:0.8, intervals:[], noise:null };
+function makeSnoreBus(ac, dest){
+  const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 650; lp.Q.value = 0.5;
+  const lp2 = ac.createBiquadFilter(); lp2.type = "lowpass"; lp2.frequency.value = 650; lp2.Q.value = 0.5;
+  const g = ac.createGain(); g.gain.value = snoreLinGain();
+  const lim = ac.createDynamicsCompressor(); lim.threshold.value = -10; lim.knee.value = 6; lim.ratio.value = 8; lim.attack.value = 0.003; lim.release.value = 0.15;
+  lp.connect(lp2).connect(g).connect(lim); const out = lim;
+  if (ac.createStereoPanner){ const pn = ac.createStereoPanner(); pn.pan.value = -0.7; out.connect(pn).connect(dest); }
+  else out.connect(dest);
+  const len = ac.sampleRate * 2, nb = ac.createBuffer(1, len, ac.sampleRate), d = nb.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random()*2 - 1;
+  return { input: lp, out: g, noise: nb };
+}
+// one snore sound (inhale flutter + breath noise), fully randomised
+function snoreVoice(ac, bus, t, dur, amp, opt = {}){
+  const f0 = opt.f0 ?? rand(45, 120), f1 = f0 * rand(0.75, 1.3);
+  const o = ac.createOscillator(); o.type = Math.random() < 0.5 ? "sawtooth" : "square";
+  o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f1, t + dur);
+  const res = ac.createBiquadFilter(); res.type = "lowpass"; res.frequency.value = opt.cutoff ?? rand(350, 850); res.Q.value = rand(1.5, 7);
+  const env = ac.createGain(); env.gain.setValueAtTime(0, t);
+  const atk = dur * rand(0.2, 0.45), mid = t + dur * rand(0.45, 0.7);
+  env.gain.linearRampToValueAtTime(amp, t + atk);
+  env.gain.linearRampToValueAtTime(amp * rand(0.55, 1.0), mid);
+  env.gain.linearRampToValueAtTime(0, t + dur);
+  const rough = rand(0.15, 0.85);                         // soft-palate flutter (amplitude modulation)
+  const am = ac.createGain(); am.gain.value = 1 - rough/2;
+  const lfo = ac.createOscillator(); lfo.frequency.value = rand(16, 42);
+  const lfoG = ac.createGain(); lfoG.gain.value = rough/2; lfo.connect(lfoG).connect(am.gain);
+  o.connect(res).connect(env).connect(am).connect(bus.input);
+  const nz = ac.createBufferSource(); nz.buffer = bus.noise; nz.loop = true;
+  const nf = ac.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = rand(350, 800); nf.Q.value = 0.8;
+  const ng = ac.createGain(); ng.gain.setValueAtTime(0, t);
+  ng.gain.linearRampToValueAtTime(amp * rand(0.15, 0.4), t + atk); ng.gain.linearRampToValueAtTime(0, t + dur);
+  nz.connect(nf).connect(ng).connect(am);
+  const off = rand(0, 1.5);
+  o.start(t); lfo.start(t); nz.start(t, off); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); nz.stop(t + dur + 0.05);
+}
+function breathOut(ac, bus, t, dur, amp){
+  const nz = ac.createBufferSource(); nz.buffer = bus.noise; nz.loop = true;
+  const nf = ac.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = rand(300, 750); nf.Q.value = rand(0.5, 1.2);
+  const g = ac.createGain(); g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(amp, t + dur*0.3); g.gain.linearRampToValueAtTime(0, t + dur);
+  nz.connect(nf).connect(g).connect(bus.input); nz.start(t, rand(0, 1.5)); nz.stop(t + dur + 0.05);
+  if (Math.random() < 0.15){                               // occasional lip "puff"
+    const o = ac.createOscillator(); o.frequency.value = rand(20, 30);
+    const og = ac.createGain(); og.gain.setValueAtTime(0, t + dur*0.5); og.gain.linearRampToValueAtTime(amp*0.8, t + dur*0.55); og.gain.linearRampToValueAtTime(0, t + dur*0.75);
+    o.connect(og).connect(bus.input); o.start(t + dur*0.5); o.stop(t + dur*0.8);
+  }
+}
+// schedule one irregular breathing cycle starting at t; returns the start of the next cycle
+function snoreCycle(ac, bus, t, log){
+  SN.level = Math.min(1.0, Math.max(0.35, SN.level + rand(-0.12, 0.12)));   // slow loudness drift
+  const r = Math.random();
+  if (r < 0.08) return t + rand(3.5, 7.5);                 // breathing pause (silence)
+  const dur = rand(0.7, 1.9), amp = 0.11 * SN.level * rand(0.5, 1.0);
+  snoreVoice(ac, bus, t, dur, amp); log && log(t, t + dur);
+  let end = t + dur;
+  if (r < 0.18){                                            // double snore
+    const d2 = rand(0.35, 0.8), t2 = end + rand(0.08, 0.25);
+    snoreVoice(ac, bus, t2, d2, amp * rand(0.6, 1.1)); log && log(t2, t2 + d2); end = t2 + d2;
+  } else if (r < 0.26){                                     // snort
+    const d3 = rand(0.15, 0.3), t3 = end + rand(0.02, 0.1);
+    snoreVoice(ac, bus, t3, d3, Math.min(0.13, amp * 1.4), { f0: rand(45, 85), cutoff: rand(500, 800) }); log && log(t3, t3 + d3); end = t3 + d3;
+  }
+  const ex = rand(0.6, 1.5), exStart = end + rand(0.1, 0.45);
+  breathOut(ac, bus, exStart, ex, 0.03 * SN.level * rand(0.4, 1.0));
+  return exStart + ex + rand(0.3, 1.7);
+}
+function startSnoring(){
+  if (!SNORE_ON || !A.ctx) return;
+  const ac = A.ctx;
+  if (!SN.bus) SN.bus = makeSnoreBus(ac, ac.destination);
+  SN.bus.out.gain.cancelScheduledValues(ac.currentTime); SN.bus.out.gain.setValueAtTime(snoreLinGain(), ac.currentTime);
+  SN.intervals = []; SN.level = rand(0.6, 0.9);
+  SN.nextT = ac.currentTime + rand(0.3, 1.5);
+  const tick = () => {
+    while (SN.nextT < ac.currentTime + 1.5) SN.nextT = snoreCycle(ac, SN.bus, SN.nextT, (a, b) => SN.intervals.push([a, b]));
+    SN.timer = setTimeout(tick, 250);
+  };
+  tick();
+}
+function stopSnoring(){
+  clearTimeout(SN.timer); SN.timer = null;
+  if (SN.bus && A.ctx){ const t = A.ctx.currentTime; SN.bus.out.gain.cancelScheduledValues(t); SN.bus.out.gain.setTargetAtTime(0, t, 0.05); }
+}
+function snoringAt(ctxTime){
+  if (!SNORE_ON) return "";
+  return SN.intervals.some(([a, b]) => ctxTime >= a && ctxTime <= b) ? 1 : 0;
+}
+
+/* ---------- trial flow ---------- */
+const rand = (a,b) => a + Math.random()*(b-a);
+function elapsed(now){ return now - S.sessionStart; }
+
+function startSession(){
+  initAudio(); if (A.ctx.state === "suspended") A.ctx.resume();
+  S.trials = []; S.bumps = []; S.splats = []; S.flyAway = null; S.fb = null;
+  S.sessionStart = performance.now();
+  document.body.classList.add("playing");
+  startSnoring();
+  startISI(S.sessionStart);
+}
+function startISI(now){
+  if (elapsed(now) >= SESSION_MS) return endSession();
+  S.phase = "isi"; S.isiStart = now; S.isiDur = Math.round(rand(ISI_MIN, ISI_MAX));
+  S.pendingOnset = false;
+  buzz(true);
+}
+function logTrial(o){
+  o.trial = S.trials.length + 1;
+  o.snore = (o.status === 2 && o.premature_ms !== "") ? "" : snoringAt(S.onsetCtx);
+  S.trials.push(o);
+}
+function respond(t){             // t = event.timeStamp (performance.now time base)
+  if (S.phase === "isi"){
+    // premature input: no stimulus on screen
+    logTrial({status:2, label:"false_start", isi_ms:S.isiDur,
+      onset_s:((t - S.sessionStart)/1000), rt_ms:0, premature_ms:Math.round(t - S.isiStart), outcome:"slapped_self"});
+    showFeedback(t, "fs", null);
+  } else if (S.phase === "stim" && t < S.onset){
+    // audio mode: input before the scheduled whine is actually heard = premature
+    stopWhine();
+    logTrial({status:2, label:"false_start", isi_ms:S.isiDur,
+      onset_s:((t - S.sessionStart)/1000), rt_ms:0, premature_ms:Math.round(t - S.isiStart), outcome:"slapped_self"});
+    showFeedback(t, "fs", null);
+  } else if (S.phase === "stim"){
+    const rt = t - S.onset;
+    let status, label, outcome;
+    if (rt < MIN_RT){ status = 2; label = "false_start"; outcome = "anticipation"; }
+    else if (rt >= LAPSE_RT){ status = 3; label = "lapse"; outcome = "bitten"; }
+    else { status = 1; label = "valid"; outcome = rt < KILL_RT ? "squashed" : "maimed"; }
+    logTrial({status, label, isi_ms:S.isiDur, onset_s:((S.onset - S.sessionStart)/1000),
+      rt_ms:Math.round(rt*10)/10, premature_ms:"", outcome});
+    showFeedback(t, outcome, rt);
+  }
+}
+function showFeedback(t, kind, rt){
+  S.phase = "feedback"; S.feedbackUntil = t + FEEDBACK_MS;
+  S.fb = { kind, rt, t };
+  S.slapAt = t; slapSound(); stopWhine();
+  if (MODE === "audio" && kind === "maimed") fleeSound();
+  const g = geom();
+  if (kind === "squashed" || kind === "bitten") S.splats.push({x:g.tx, y:g.ty, t, big: kind === "bitten"});
+  if (kind === "bitten") S.bumps.push({ dx: rand(-0.55, 0.35), dy: rand(0.05, 0.9), t });
+  if (kind === "maimed") S.flyAway = { t };
+  if (kind === "fs" && MODE === "audio") buzz(true);           // far-away buzz resumes
+  else if (kind !== "fs" && kind !== "anticipation") buzz(false);
+}
+function endSession(){
+  S.phase = "done"; buzz(false); stopWhine(); stopSnoring();
+  document.body.classList.remove("playing");
+  if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  showResults();
+}
+
+/* ---------- input ---------- */
+window.addEventListener("keydown", e => {
+  if (e.code !== "Space") return;
+  if (S.phase === "isi" || S.phase === "stim" || S.phase === "feedback") e.preventDefault();
+  if (e.repeat) return;
+  respond(e.timeStamp);
+});
+cv.addEventListener("pointerdown", e => { e.preventDefault(); respond(e.timeStamp); });
+
+/* ---------- main loop ---------- */
+function frame(now){
+  // phase transitions are evaluated on the frame clock
+  if (S.phase === "isi"){
+    wanderBuzz(now);
+    if (elapsed(now) >= SESSION_MS){ endSession(); }
+    else if (now - S.isiStart >= S.isiDur){
+      if (MODE === "audio"){
+        S.phase = "stim"; S.onset = scheduleWhine();   // onset = when the whine leaves the speakers
+      } else {
+        S.phase = "stim"; S.onset = now;          // stimulus is drawn in THIS frame
+        buzz(false);                              // a landed mosquito stops buzzing
+      }
+    }
+  } else if (S.phase === "stim"){
+    if (now - S.onset >= TIMEOUT_MS){            // no response at all: log as lapse at the cap
+      logTrial({status:3, label:"lapse", isi_ms:S.isiDur, onset_s:((S.onset - S.sessionStart)/1000),
+        rt_ms:TIMEOUT_MS, premature_ms:"", outcome:"timeout"});
+      showFeedback(now, "bitten", TIMEOUT_MS);
+    }
+  } else if (S.phase === "feedback"){
+    if (now >= S.feedbackUntil) startISI(now);
+  }
+  draw(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---------- drawing ---------- */
+function draw(now){
+  if (MODE === "audio") return drawAudioScene(now);
+  const g = geom();
+  ctx.fillStyle = "#07070b"; ctx.fillRect(0,0,W,H);
+
+  // table surface
+  const tbl = ctx.createLinearGradient(0, H*0.35, 0, H);
+  tbl.addColorStop(0, "#15110c"); tbl.addColorStop(1, "#231a10");
+  ctx.fillStyle = tbl; ctx.fillRect(0, H*0.38, W, H*0.62);
+
+  drawArm(g, now);
+
+  // stains on the hand
+  S.splats = S.splats.filter(s => now - s.t < 6000);
+  for (const s of S.splats){
+    const a = 1 - (now - s.t)/6000;
+    ctx.fillStyle = `rgba(150,10,15,${0.75*a})`;
+    blob(s.x, s.y, g.R*(s.big?0.07:0.045), s.t);
+  }
+
+  drawMosquitoLayer(g, now);
+  drawSlap(g, now);
+
+  // darkness mask: lamp pool lit, everything else dark (constant, no flicker)
+  const m = ctx.createRadialGradient(g.cx, g.cy, g.R*0.55, g.cx, g.cy, g.R*2.3);
+  m.addColorStop(0, "rgba(4,4,8,0)"); m.addColorStop(0.45, "rgba(4,4,8,0.72)"); m.addColorStop(1, "rgba(4,4,8,0.97)");
+  ctx.fillStyle = m; ctx.fillRect(0,0,W,H);
+
+  // lamp head + beam
+  ctx.fillStyle = "#1c1c22";
+  ctx.beginPath(); ctx.ellipse(g.cx, H*0.08, g.R*0.55, g.R*0.16, 0, Math.PI, 0); ctx.fill();
+  const beam = ctx.createLinearGradient(0, H*0.08, 0, g.cy);
+  beam.addColorStop(0, "rgba(255,217,138,0.10)"); beam.addColorStop(1, "rgba(255,217,138,0)");
+  ctx.fillStyle = beam; ctx.beginPath();
+  ctx.moveTo(g.cx - g.R*0.5, H*0.08); ctx.lineTo(g.cx + g.R*0.5, H*0.08);
+  ctx.lineTo(g.cx + g.R*1.05, g.cy); ctx.lineTo(g.cx - g.R*1.05, g.cy); ctx.closePath(); ctx.fill();
+
+  // slow dust in the beam (continuous, stimulus-independent motion)
+  for (const p of S.dust){
+    p.y -= p.v * 0.16; if (p.y < 0) p.y = 1;
+    const x = g.cx + (p.x - 0.5) * g.R * 1.6 * (0.5 + p.y*0.5), y = H*0.08 + p.y * (g.cy - H*0.08);
+    ctx.fillStyle = "rgba(255,230,170,0.18)"; ctx.beginPath(); ctx.arc(x, y, p.s, 0, 7); ctx.fill();
+  }
+
+  // target frame (the lamp-lit zone)
+  ctx.strokeStyle = "rgba(255,217,138,0.22)"; ctx.setLineDash([6,8]); ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(g.cx, g.cy, g.R*0.95, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+
+  drawFeedback(g, now);
+  drawHUD(now);
+}
+
+/* Lights-off scene: static and dark. NOTHING on screen changes at stimulus onset. */
+function drawAudioScene(now){
+  const g = geom(), R = g.R, ex = g.cx, ey = H*0.52;
+  ctx.fillStyle = "#040407"; ctx.fillRect(0,0,W,H);
+  // pillow
+  ctx.fillStyle = "#0d0f16"; ctx.beginPath(); ctx.ellipse(ex - R*0.2, ey + R*0.25, R*2.4, R*1.1, -0.05, 0, 7); ctx.fill();
+  // moonlit window (constant)
+  ctx.fillStyle = "rgba(120,140,190,0.07)"; ctx.fillRect(W*0.78, H*0.10, W*0.12, H*0.22);
+  ctx.strokeStyle = "rgba(120,140,190,0.12)"; ctx.lineWidth = 2; ctx.strokeRect(W*0.78, H*0.10, W*0.12, H*0.22);
+  ctx.beginPath(); ctx.moveTo(W*0.84, H*0.10); ctx.lineTo(W*0.84, H*0.32); ctx.stroke();
+  // ear (dim, rim-lit by the moon)
+  ctx.save(); ctx.translate(ex, ey); ctx.scale(R/100, R/100);
+  ctx.fillStyle = "#2a211e"; ctx.strokeStyle = "rgba(140,160,210,0.45)"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-10,-80);
+  ctx.bezierCurveTo(45,-95, 70,-40, 55,5); ctx.bezierCurveTo(45,40, 25,45, 20,70);
+  ctx.bezierCurveTo(15,95, -20,95, -25,70); ctx.bezierCurveTo(-30,40, -45,20, -42,-20);
+  ctx.bezierCurveTo(-40,-55, -30,-75, -10,-80); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "rgba(140,160,210,0.25)"; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(-15,-55); ctx.bezierCurveTo(25,-65, 40,-25, 25,5); ctx.bezierCurveTo(15,20, 0,15, -5,30); ctx.stroke();
+  ctx.fillStyle = "#120d0c"; ctx.beginPath(); ctx.ellipse(-8, 10, 12, 16, 0.2, 0, 7); ctx.fill();
+  ctx.restore();
+  // bites on the ear
+  for (const b of S.bumps){
+    const k = Math.min(1, (now - b.t)/400), bx = ex + (b.dx*0.6)*R, by = ey + (b.dy - 0.45)*R*1.2;
+    ctx.fillStyle = `rgba(200,70,70,${0.5*k})`; ctx.beginPath(); ctx.ellipse(bx, by, R*0.06*k, R*0.05*k, 0, 0, 7); ctx.fill();
+  }
+  S.splats = S.splats.filter(s => now - s.t < 6000);
+  for (const s of S.splats){
+    ctx.fillStyle = `rgba(150,10,15,${0.7*(1 - (now - s.t)/6000)})`; blob(ex + R*0.25, ey - R*0.2, R*(s.big?0.07:0.045), s.t);
+  }
+  drawSlap({ ...g, tx: ex + R*0.25, ty: ey - R*0.2 }, now);
+  // after-response visuals only (feedback), never during the stimulus
+  if (S.phase === "feedback" && S.fb && (S.fb.kind === "squashed" || S.fb.kind === "bitten") && now - S.fb.t > 140){
+    ctx.save(); ctx.translate(ex + R*0.25, ey - R*0.2); ctx.scale(1, 0.45); ctx.translate(-(ex + R*0.25), -(ey - R*0.2));
+    drawMosquito(ex + R*0.25, ey - R*0.2, R*0.3, { blood: S.fb.kind === "bitten" ? 1 : 0.1, wings:1, angle:-0.1 });
+    ctx.restore();
+  }
+  drawFeedback({ ...g, cy: ey + R*0.35 }, now);
+  drawHUD(now);
+}
+
+function blob(x, y, r, seed){
+  ctx.beginPath();
+  for (let i = 0; i <= 12; i++){
+    const a = i/12 * Math.PI*2, k = 0.75 + 0.35*Math.abs(Math.sin(seed*0.37 + i*1.7));
+    const px = x + Math.cos(a)*r*k, py = y + Math.sin(a)*r*k*0.8;
+    i ? ctx.lineTo(px,py) : ctx.moveTo(px,py);
+  }
+  ctx.closePath(); ctx.fill();
+}
+
+function drawArm(g, now){
+  const { cx, cy, R } = g;
+  const skin = ctx.createRadialGradient(cx, cy - R*0.3, R*0.1, cx, cy, R*1.6);
+  skin.addColorStop(0, "#f2c9a0"); skin.addColorStop(1, "#9a6a45");
+  ctx.fillStyle = skin;
+  // forearm from bottom-left
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(-0.55);
+  roundRect(-R*0.36, R*0.10, R*0.72, R*2.6, R*0.32); ctx.fill();
+  ctx.restore();
+  // back of the hand
+  ctx.beginPath(); ctx.ellipse(cx, cy - R*0.05, R*0.48, R*0.40, -0.25, 0, Math.PI*2); ctx.fill();
+  // fingers
+  const fingers = [[-0.42,-0.32,0.95],[-0.18,-0.44,1.05],[0.07,-0.46,1.0],[0.30,-0.38,0.85]];
+  for (const [fx, fy, L] of fingers){
+    ctx.save(); ctx.translate(cx + fx*R, cy + fy*R); ctx.rotate(-0.25 + fx*0.35);
+    roundRect(-R*0.085, -R*0.48*L, R*0.17, R*0.52*L, R*0.085); ctx.fill(); ctx.restore();
+  }
+  // thumb
+  ctx.save(); ctx.translate(cx + R*0.42, cy + R*0.05); ctx.rotate(0.9);
+  roundRect(-R*0.09, -R*0.40, R*0.18, R*0.44, R*0.09); ctx.fill(); ctx.restore();
+  // bite bumps
+  for (const b of S.bumps){
+    const bx = cx + b.dx*R - b.dy*R*0.55, by = cy + R*0.35 + b.dy*R*0.9;
+    const k = Math.min(1, (now - b.t)/400);
+    ctx.fillStyle = `rgba(220,90,90,${0.55*k})`;
+    ctx.beginPath(); ctx.ellipse(bx, by, R*0.06*k, R*0.05*k, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = `rgba(150,20,30,${0.9*k})`; ctx.beginPath(); ctx.arc(bx, by, R*0.012, 0, 7); ctx.fill();
+  }
+}
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x,y,w,h,r) : ctx.rect(x,y,w,h); }
+
+function drawMosquito(x, y, s, opt){
+  // s = scale (body length ~ 1 unit); opt: {blood 0..1, wings 0|1|2, flapping, angle}
+  ctx.save(); ctx.translate(x, y); ctx.rotate(opt.angle || 0); ctx.scale(s, s);
+  ctx.lineCap = "round";
+  // legs (long, thin)
+  ctx.strokeStyle = "#1a1410"; ctx.lineWidth = 0.035;
+  const legs = [[-0.05,-0.55,-0.75],[-0.02,-0.6,-0.05],[0.02,-0.5,0.6]];
+  for (const [ox, sx, ex] of legs){
+    for (const side of [-1,1]){
+      ctx.beginPath(); ctx.moveTo(ox, 0);
+      ctx.quadraticCurveTo(ox + ex*0.4, side*0.45, ox + ex*0.9 + sx*0.1, side*0.95); ctx.stroke();
+    }
+  }
+  // wings
+  const wingCount = opt.wings ?? 2;
+  const flap = opt.flapping ? Math.sin(performance.now()/9) * 0.5 : 0;
+  ctx.fillStyle = "rgba(220,230,255,0.35)"; ctx.strokeStyle = "rgba(220,230,255,0.55)"; ctx.lineWidth = 0.02;
+  for (let i = 0; i < wingCount; i++){
+    const side = i === 0 ? -1 : 1;
+    ctx.save(); ctx.rotate(side * (0.35 + flap));
+    ctx.beginPath(); ctx.ellipse(0.25, side*0.18, 0.42, 0.11, 0, 0, 7); ctx.fill(); ctx.stroke(); ctx.restore();
+  }
+  // abdomen (striped, fills red as it feeds)
+  const bl = opt.blood || 0;
+  const aw = 0.13 + bl*0.07;
+  ctx.fillStyle = bl > 0.02 ? `rgb(${60+150*bl},${20},${20})` : "#2a2018";
+  ctx.beginPath(); ctx.ellipse(0.38, 0, 0.36, aw, 0, 0, 7); ctx.fill();
+  ctx.strokeStyle = `rgba(235,235,235,${0.55*(1-bl)})`; ctx.lineWidth = 0.025;
+  for (let k = 0; k < 4; k++){ const xx = 0.18 + k*0.12; ctx.beginPath(); ctx.moveTo(xx, -aw*0.9); ctx.lineTo(xx, aw*0.9); ctx.stroke(); }
+  // thorax, head, proboscis
+  ctx.fillStyle = "#3a2c20"; ctx.beginPath(); ctx.ellipse(-0.05, 0, 0.16, 0.12, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#1e1610"; ctx.beginPath(); ctx.arc(-0.25, 0, 0.075, 0, 7); ctx.fill();
+  ctx.strokeStyle = "#1e1610"; ctx.lineWidth = 0.03;
+  ctx.beginPath(); ctx.moveTo(-0.3, 0); ctx.lineTo(-0.62, 0.04); ctx.stroke();
+  ctx.restore();
+}
+
+function drawMosquitoLayer(g, now){
+  const s = g.R * 0.34;
+  if (S.phase === "stim"){
+    // landed: fixed spot, fixed size; abdomen slowly fills (gradual, no discrete cue)
+    const blood = Math.min(1, Math.max(0, (now - S.onset - 200) / 1600));
+    drawMosquito(g.tx, g.ty, s, { blood, wings:2, angle:-0.4 });
+  }
+  if (S.phase === "feedback" && S.fb){
+    const k = S.fb.kind, dt = now - S.fb.t;
+    if (k === "squashed" || k === "bitten"){
+      if (dt > 140){                      // squashed mosquito under the stain
+        ctx.save(); ctx.translate(g.tx, g.ty); ctx.scale(1, 0.45); ctx.translate(-g.tx, -g.ty);
+        drawMosquito(g.tx, g.ty, s*1.1, { blood: k === "bitten" ? 1 : 0.1, wings:1, angle:-0.1 });
+        ctx.restore();
+      }
+    } else if (k === "anticipation"){
+      // RT < 100 ms: counted as false start; mosquito escapes untouched
+      const p = Math.min(1, dt/450);
+      drawMosquito(g.tx + p*g.R*2.2, g.ty - p*g.R*1.6, s*(1-p*0.3), { wings:2, flapping:true, angle:-0.9 });
+    }
+  }
+  if (S.flyAway){
+    const dt = now - S.flyAway.t;
+    if (dt > 900) S.flyAway = null;
+    else if (dt > 120){
+      const p = (dt-120)/780;
+      const wob = Math.sin(dt/35) * g.R * 0.08 * (1-p);
+      drawMosquito(g.tx - p*g.R*2.4 + wob, g.ty - p*g.R*1.4 + p*p*g.R*0.6, s*(1-p*0.4),
+        { wings:1, flapping:true, angle: 0.6 + Math.sin(dt/50)*0.4 });
+    }
+  }
+}
+
+function drawSlap(g, now){
+  const dt = now - S.slapAt;
+  if (S.slapAt < 0 || dt > 320) return;
+  // palm comes down fast (≤ 60 ms) – feedback lands within one perceptual cycle (Tp ≈ 100 ms)
+  const down = Math.min(1, dt / 60), up = dt > 200 ? Math.min(1, (dt-200)/120) : 0;
+  const p = down - up;
+  const sc = 1.6 - 0.6*p, alpha = 0.95 * (1 - up);
+  ctx.save(); ctx.globalAlpha = alpha;
+  ctx.translate(g.tx, g.ty - (1-p)*g.R*0.9); ctx.scale(sc, sc); ctx.rotate(0.25);
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.beginPath(); ctx.ellipse(g.R*0.05, g.R*0.08, g.R*0.5, g.R*0.42, 0, 0, 7); ctx.fill();
+  const sk = ctx.createLinearGradient(0, -g.R*0.6, 0, g.R*0.5);
+  sk.addColorStop(0, "#d9a57c"); sk.addColorStop(1, "#b17c55");
+  ctx.fillStyle = sk;
+  ctx.beginPath(); ctx.ellipse(0, 0, g.R*0.42, g.R*0.36, 0, 0, 7); ctx.fill();
+  for (const fx of [-0.27,-0.09,0.09,0.27]){
+    roundRect(fx*g.R - g.R*0.075, -g.R*0.78, g.R*0.15, g.R*0.5, g.R*0.075); ctx.fill();
+  }
+  ctx.restore();
+}
+
+const FB_TEXT = {
+  fs:           ["Too early!", "You slapped your own hand", "#fbb315"],
+  anticipation: ["Too early!", "Anticipation (< 100 ms) — it escaped", "#fbb315"],
+  squashed:     ["Squashed!", "Clean kill", "#7fd27f"],
+  maimed:       ["Maimed!", "It limps away with one wing", "#ffd98a"],
+  bitten:       ["Too late…", "It already bit you", "#ff6b6b"],
+};
+function drawFeedback(g, now){
+  if (S.phase !== "feedback" || !S.fb) return;
+  let [title, sub, col] = FB_TEXT[S.fb.kind];
+  if (MODE === "audio" && S.fb.kind === "fs") sub = "You slapped your own ear";
+  const y = g.cy - g.R*1.45;
+  ctx.textAlign = "center";
+  ctx.fillStyle = col; ctx.font = `700 ${Math.round(g.R*0.26)}px "Segoe UI",system-ui,sans-serif`;
+  const rtTxt = S.fb.rt != null ? `${Math.round(S.fb.rt)} ms` : "";
+  ctx.fillText(rtTxt ? `${title}  ${rtTxt}` : title, g.cx, y);
+  ctx.fillStyle = "rgba(239,239,239,0.75)"; ctx.font = `400 ${Math.round(g.R*0.12)}px "Segoe UI",system-ui,sans-serif`;
+  ctx.fillText(sub, g.cx, y + g.R*0.22);
+}
+
+function drawHUD(now){
+  if (S.phase === "idle" || S.phase === "done") return;
+  const kills = S.trials.filter(t => t.outcome === "squashed").length;
+  const maim  = S.trials.filter(t => t.outcome === "maimed").length;
+  const bites = S.trials.filter(t => t.label === "lapse").length;
+  ctx.textAlign = "left"; ctx.font = `600 15px "Segoe UI",system-ui,sans-serif`;
+  ctx.fillStyle = "rgba(239,239,239,0.55)";
+  ctx.fillText(`💀 ${kills}   🦟 ${maim}   🩸 ${bites}`, 20, 30);
+  // thin progress line at the very bottom (no countdown numbers)
+  const p = Math.min(1, elapsed(now) / SESSION_MS);
+  ctx.fillStyle = "rgba(255,217,138,0.25)"; ctx.fillRect(0, H-3, W*p, 3);
+}
+
+/* =====================================================================
+   PVT metrics – identical definitions to Lecture 6 "PVT Scores"
+   ===================================================================== */
+function computeMetrics(trials){
+  const fs     = trials.filter(t => t.status === 2).length;
+  const lapses = trials.filter(t => t.status === 3).length;
+  const valid  = trials.filter(t => t.status === 1).length;
+  const rts = trials.filter(t => t.status !== 2).map(t => t.rt_ms).sort((a,b) => a-b); // RT ≥ 100 ms
+  const n = rts.length;
+  const recip = rts.map(r => 1000 / r);                  // fastest first (descending speed)
+  const k = Math.max(1, Math.round(0.10 * n));
+  const mean = a => a.reduce((s,x) => s+x, 0) / a.length;
+  const pct = (arr, q) => {                               // linear interpolation (= numpy default)
+    const a = [...arr].sort((x,y) => x-y), pos = (a.length-1)*q/100, lo = Math.floor(pos), hi = Math.ceil(pos);
+    return a[lo] + (a[hi]-a[lo])*(pos-lo);
+  };
+  const r500 = rts.filter(r => r <= LAPSE_RT).map(r => 1000/r);
+  const m = n ? {
+    recipRT:      mean(recip),
+    recipRT500:   r500.length ? mean(r500) : NaN,
+    recipVar:     pct(recip, 90) - pct(recip, 10),
+    falseRT:      100 * fs / n,
+    lapses, lapsePct: 100 * lapses / n,
+    fastest10:    mean(recip.slice(0, k)),
+    slowest10:    mean(recip.slice(-k)),
+    meanRT:       mean(rts),
+    medianRT:     pct(rts, 50),
+  } : null;
+  return { total: trials.length, valid, fs, lapses, n, m };
+}
+
+/* ---------- results screen ---------- */
+function showResults(){
+  const R = computeMetrics(S.trials), m = R.m;
+  const pid = document.getElementById("pid").value.trim() || "anonymous";
+  document.getElementById("resSub").textContent =
+    `Participant ${pid} · 🌑 Lights off (auditory) · ${SNORE_ON ? `😴 snoring on (${SNORE_DB >= 0 ? "+" : ""}${SNORE_DB} dB)` : "quiet room"} · ${new Date().toLocaleString()} · session ${(SESSION_MS/60000).toFixed(1)} min`;
+  const f2 = x => (x == null || isNaN(x)) ? "–" : x.toFixed(2);
+
+  const kills = S.trials.filter(t => t.outcome === "squashed").length;
+  const maim  = S.trials.filter(t => t.outcome === "maimed").length;
+  document.getElementById("tally").innerHTML = [
+    ["💀", kills, "squashed (< 300 ms)"], ["🦟", maim, "maimed (300–499 ms)"],
+    ["🩸", R.lapses, "bites (lapses ≥ 500 ms)"], ["🖐️", R.fs, "slapped yourself (false starts)"]
+  ].map(([i,n,l]) => `<div class="tile"><div class="n">${i} ${n}</div><div class="l">${l}</div></div>`).join("");
+
+  const rows = m ? [
+    ["1. 1/RT", f2(m.recipRT)+" /s", "Mean reciprocal RT, all responses"],
+    ["2. 1/RT500", f2(m.recipRT500)+" /s", "Mean reciprocal RT, lapses excluded"],
+    ["3. 1/RT variability", f2(m.recipVar)+" /s", "90th − 10th percentile of 1/RT"],
+    ["4. False RT", f2(m.falseRT)+" %", "False starts ÷ valid stimuli"],
+    ["5. Lapses", `${m.lapses} (${f2(m.lapsePct)} %)`, "Responses with RT ≥ 500 ms"],
+    ["6. Fastest 10%", f2(m.fastest10)+" /s", "Mean 1/RT of fastest 10 %"],
+    ["7. Slowest 10%", f2(m.slowest10)+" /s", "Mean 1/RT of slowest 10 %"],
+  ] : [["No responses recorded","",""]];
+  document.getElementById("metricsTable").innerHTML = rows.map(([a,v,d]) =>
+    `<tr><td>${a}<br><span class="d">${d}</span></td><td class="v">${v}</td></tr>`).join("");
+
+  document.getElementById("countsTable").innerHTML = [
+    ["Total trials", R.total], ["Valid trials (100 ≤ RT < 500 ms)", R.valid],
+    ["Error trials", R.fs + R.lapses], ["&nbsp;&nbsp;– False starts (RT < 100 ms)", R.fs],
+    ["&nbsp;&nbsp;– Lapses (RT ≥ 500 ms)", R.lapses],
+    ["Mean RT (reference)", m ? f2(m.meanRT)+" ms" : "–"], ["Median RT (reference)", m ? f2(m.medianRT)+" ms" : "–"],
+  ].map(([a,v]) => `<tr><td>${a}</td><td class="v">${v}</td></tr>`).join("");
+
+  const sec = document.getElementById("snoreSection");
+  sec.classList.toggle("hidden", !SNORE_ON);
+  if (SNORE_ON){
+    const grp = v => S.trials.filter(t => t.snore === v && t.status !== 2);
+    const med = a => { const b = a.map(t => t.rt_ms).sort((x,y) => x-y); if (!b.length) return "–";
+      const q = (b.length-1)/2; return (b[Math.floor(q)] + (b[Math.ceil(q)] - b[Math.floor(q)])*(q - Math.floor(q))).toFixed(1) + " ms"; };
+    const row = (name, a) => `<tr><td>${name}</td><td class="v">${a.length} trials</td><td class="v">median ${med(a)}</td><td class="v">${a.filter(t => t.status === 3).length} lapses</td></tr>`;
+    document.getElementById("snoreTable").innerHTML =
+      row("😴 Roommate snoring at mosquito onset", grp(1)) + row("🤫 Quiet (between snores)", grp(0)) +
+      `<tr><td colspan="4" class="d">Exploratory only: few trials per group, so treat differences as a pilot observation.</td></tr>`;
+  }
+  document.getElementById("resultScreen").classList.remove("hidden");
+  requestAnimationFrame(() => drawChart(S.trials));
+}
+
+/* ---------- RT chart (single y axis, status-coded marks + shape) ---------- */
+let chartPts = [];
+function drawChart(trials){
+  const c = document.getElementById("rtChart"), x = c.getContext("2d");
+  const w = c.clientWidth, h = c.clientHeight, d = window.devicePixelRatio || 1;
+  c.width = w*d; c.height = h*d; x.setTransform(d,0,0,d,0,0);
+  const L = 48, Rr = 12, T = 10, B = 30;
+  const tmax = Math.max(SESSION_MS/1000, ...trials.map(t => t.onset_s || 0));
+  const ymax = 1000;
+  const X = s => L + (w-L-Rr) * s / tmax, Y = v => T + (h-T-B) * (1 - Math.min(v, ymax)/ymax);
+  x.clearRect(0,0,w,h);
+  x.font = "12px Segoe UI, system-ui, sans-serif"; x.fillStyle = "#9c9c9c"; x.strokeStyle = "#2c2c2c"; x.lineWidth = 1;
+  for (const v of [0,250,500,750,1000]){
+    x.beginPath(); x.moveTo(L, Y(v)); x.lineTo(w-Rr, Y(v)); x.stroke();
+    x.textAlign = "right"; x.fillText(v === 1000 ? "≥1000" : v, L-6, Y(v)+4);
+  }
+  x.textAlign = "center";
+  for (let s = 0; s <= tmax; s += 30) x.fillText(s+" s", X(s), h-10);
+  // lapse threshold
+  x.strokeStyle = "rgba(220,60,61,0.6)"; x.setLineDash([4,4]); x.beginPath(); x.moveTo(L, Y(500)); x.lineTo(w-Rr, Y(500)); x.stroke(); x.setLineDash([]);
+  x.fillStyle = "#9c9c9c"; x.textAlign = "left"; x.fillText("lapse threshold 500 ms", L+6, Y(500)-6);
+  x.save(); x.translate(12, (h-B)/2); x.rotate(-Math.PI/2); x.textAlign = "center"; x.fillText("RT (ms)", 0, 0); x.restore();
+  // marks
+  chartPts = [];
+  for (const t of trials){
+    const px = X(t.onset_s), isFS = t.status === 2, py = isFS ? Y(0) - 6 : Y(t.rt_ms);
+    x.lineWidth = 2; x.strokeStyle = "#191919";
+    if (isFS){
+      x.fillStyle = "#fbb315"; x.beginPath(); x.moveTo(px, py-6); x.lineTo(px+6, py+5); x.lineTo(px-6, py+5); x.closePath(); x.fill(); x.stroke();
+    } else if (t.status === 3){
+      x.fillStyle = "#dc3c3d"; x.fillRect(px-5, py-5, 10, 10); x.strokeRect(px-5, py-5, 10, 10);
+    } else {
+      x.fillStyle = "#338ced"; x.beginPath(); x.arc(px, py, 4.5, 0, 7); x.fill(); x.stroke();
+    }
+    chartPts.push({px, py, t});
+  }
+}
+(function chartHover(){
+  const c = document.getElementById("rtChart"), tip = document.getElementById("tip");
+  c.addEventListener("mousemove", e => {
+    const r = c.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+    let best = null, bd = 14*14;
+    for (const p of chartPts){ const dd = (p.px-mx)**2 + (p.py-my)**2; if (dd < bd){ bd = dd; best = p; } }
+    if (!best){ tip.classList.add("hidden"); return; }
+    const t = best.t;
+    tip.innerHTML = `Trial ${t.trial} · ${t.onset_s.toFixed(1)} s<br>` +
+      (t.status === 2 ? `False start (${t.outcome})` : `RT ${t.rt_ms} ms · ${t.label}`);
+    tip.style.left = best.px + "px"; tip.style.top = best.py + "px"; tip.classList.remove("hidden");
+  });
+  c.addEventListener("mouseleave", () => tip.classList.add("hidden"));
+})();
+
+/* ---------- CSV export ---------- */
+function download(name, text){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type:"text/csv"}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+function stamp(){ const d = new Date(), p = n => String(n).padStart(2,"0");
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
+function pidSafe(){ return (document.getElementById("pid").value.trim() || "anonymous").replace(/[^\w-]/g,"_"); }
+document.getElementById("dlTrials").onclick = () => {
+  const head = "trial,mode,snoring_condition,snore_db_offset,status,label,isi_ms,stim_onset_s,rt_ms,premature_ms,outcome,snoring_at_onset";
+  const lines = S.trials.map(t => [t.trial,MODE,SNORE_ON ? "on" : "off",SNORE_ON ? SNORE_DB : "",t.status,t.label,t.isi_ms,t.onset_s.toFixed(3),t.rt_ms,t.premature_ms,t.outcome,t.snore].join(","));
+  download(`nightbite_${MODE}_${pidSafe()}_${stamp()}_trials.csv`, [head, ...lines].join("\n"));
+};
+document.getElementById("dlSummary").onclick = () => {
+  const R = computeMetrics(S.trials), m = R.m || {};
+  const rows = [["metric","value"],["mode",MODE],["snoring",SNORE_ON ? "on" : "off"],["snore_db_offset",SNORE_ON ? SNORE_DB : ""],["total_trials",R.total],["valid_trials",R.valid],["error_trials",R.fs+R.lapses],
+    ["false_starts",R.fs],["lapses",R.lapses],["1_recipRT_per_s",m.recipRT],["2_recipRT500_per_s",m.recipRT500],
+    ["3_recipRT_variability_P90_P10",m.recipVar],["4_falseRT_pct",m.falseRT],["5_lapses_n",m.lapses],["5_lapses_pct",m.lapsePct],
+    ["6_fastest10_recip_per_s",m.fastest10],["7_slowest10_recip_per_s",m.slowest10],["mean_RT_ms",m.meanRT],["median_RT_ms",m.medianRT]];
+  download(`nightbite_${MODE}_${pidSafe()}_${stamp()}_summary.csv`,
+    rows.map(([a,b]) => `${a},${typeof b === "number" ? +b.toFixed(4) : b}`).join("\n"));
+};
+
+/* ---------- screens ---------- */
+const mins = SESSION_MS / 60000;
+document.querySelectorAll(".durLabel").forEach(e => e.textContent = mins === 3 ? "3 minutes" : `${+mins.toFixed(2)} minutes`);
+document.querySelectorAll(".durLabelZh").forEach(e => e.textContent = `${+mins.toFixed(2)} 分鐘`);
+const snoreBox = document.getElementById("snoreBox");
+snoreBox.checked = SNORE_ON;
+snoreBox.addEventListener("change", () => { SNORE_ON = snoreBox.checked; });
+const snoreDbEl = document.getElementById("snoreDb"), snoreDbLabel = document.getElementById("snoreDbLabel");
+function updSnoreDb(){
+  SNORE_DB = +snoreDbEl.value;
+  snoreDbLabel.textContent = SNORE_DB === 0 ? "0 dB (default: median snore ≈ mosquito, TMR ≈ 0 dB)" : `${SNORE_DB > 0 ? "+" : ""}${SNORE_DB} dB vs default`;
+  if (SN.bus && A.ctx) SN.bus.out.gain.setValueAtTime(snoreLinGain(), A.ctx.currentTime);
+}
+snoreDbEl.value = SNORE_DB; snoreDbEl.addEventListener("input", updSnoreDb); updSnoreDb();
+document.getElementById("soundBtn").onclick = () => {
+  initAudio(); if (A.ctx.state === "suspended") A.ctx.resume();
+  const t = A.ctx.currentTime, gg = A.whineGain.gain;
+  gg.cancelScheduledValues(t); gg.setValueAtTime(0, t); gg.linearRampToValueAtTime(0.22, t + 0.005);
+  gg.setValueAtTime(0.22, t + 0.7); gg.linearRampToValueAtTime(0, t + 0.72);
+  if (snoreBox.checked){                     // then one sample snore
+    if (!SN.bus) SN.bus = makeSnoreBus(A.ctx, A.ctx.destination);
+    SN.bus.out.gain.cancelScheduledValues(t); SN.bus.out.gain.setValueAtTime(snoreLinGain(), t);
+    snoreVoice(A.ctx, SN.bus, t + 1.1, 1.3, 0.1);
+  }
+};
+document.getElementById("startBtn").onclick = async () => {
+  document.getElementById("startScreen").classList.add("hidden");
+  try { await document.documentElement.requestFullscreen(); } catch(e) {}
+  setTimeout(startSession, 600);        // short settle time after entering full screen
+};
+document.getElementById("againBtn").onclick = () => {
+  document.getElementById("resultScreen").classList.add("hidden");
+  document.getElementById("startScreen").classList.remove("hidden");
+  S.phase = "idle";
+};
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && (S.phase === "isi" || S.phase === "stim")) console.warn("Tab hidden during session – timing may be affected.");
+});
+</script>
+</body>
+</html>
