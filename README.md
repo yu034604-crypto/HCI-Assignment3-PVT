@@ -13,11 +13,3 @@ An irregular snoring roommate is heard throughout, applying the cocktail party e
 This design replaces the visual counter with an auditory stimulus, reducing visual load. In addition, the slap sound and RT feedback appear within one perceptual processor cycle (Tp ~100 ms), so perceptual fusion makes the response feel like the cause of the kill.
 
 **How to run:** open `index.html` in Chrome, or use the link above. Use the laptop's built-in keyboard and speakers.
-
-## Task 1 – PVT-B analysis (`pvtb_analysis.py`)
-
-Computes the trial statistics and the seven PVT scores from a PsyToolkit `pvtb` raw data file.
-
-```
-python pvtb_analysis.py pvtb.data.2026-xxxx.txt
-```
