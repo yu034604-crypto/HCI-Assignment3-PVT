@@ -72,8 +72,8 @@
 
     <h2>Settings · 設定</h2>
     <div class="modes">
-      <label class="mode"><input type="checkbox" id="snoreBox" checked> <b>😴 Roommate snoring</b> (cocktail-party distractor, left side)<br>
-        <span class="zh">室友在你左邊打呼（不規則），你要從中專心聽出右耳邊的蚊子聲</span>
+      <label class="mode"><input type="checkbox" id="snoreBox" checked> <b>😴 Roommate snoring</b> (cocktail-party distractor)<br>
+        <span class="zh">室友在旁邊打呼（不規則），你要從中專心聽出蚊子聲</span>
         <div class="slider">Snore volume 打呼音量:
           <input type="range" id="snoreDb" min="-12" max="6" step="1" value="0">
           <span id="snoreDbLabel">0 dB (default: snoring louder than the mosquito)</span></div></label>
@@ -91,14 +91,14 @@
         <span class="zh">眼睛盯著燈光處，全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
     </ul>
     <ul id="howAudio">
-      <li>The lights are off and you are trying to sleep. A mosquito is flying somewhere far away in the room, and your roommate on the left is snoring.<br>
-        <span class="zh">燈關了，你正要睡覺，蚊子在房間遠處飛，左邊的室友在打呼。</span></li>
-      <li>The moment you hear the <b>loud whine right at your ear</b>, press <kbd>SPACE</kbd> (or tap) to swat it — as fast as you can. Nothing changes on screen; use your ears only.<br>
-        <span class="zh">一聽到耳邊突然很大聲的「嗡——」，立刻按空白鍵拍下去。畫面不會有任何提示，只能靠耳朵。</span></li>
+      <li>The lights are off and you are trying to sleep. A mosquito is flying somewhere far away in the room, and your roommate is snoring.<br>
+        <span class="zh">燈關了，你正要睡覺，蚊子在房間遠處飛，室友在打呼。</span></li>
+      <li>The moment the <b>loud whine suddenly appears</b>, press <kbd>SPACE</kbd> (or tap) to swat it — as fast as you can. Nothing changes on screen; use your ears only.<br>
+        <span class="zh">一聽到突然出現的響亮「嗡——」，立刻按空白鍵拍下去。畫面不會有任何提示，只能靠耳朵。</span></li>
       <li>Don’t swat before you hear it — you will only slap your own ear.<br>
         <span class="zh">還沒聽到就拍，只會打到自己的耳朵。</span></li>
-      <li><b>Use wired headphones or speakers.</b> Bluetooth headphones add 100–300 ms of delay and will distort your reaction times. The session lasts <b class="durLabel">3 minutes</b>.<br>
-        <span class="zh">請用有線耳機或喇叭，藍牙耳機的延遲會讓反應時間失真。全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
+      <li><b>Use the laptop’s built-in speakers and keyboard.</b> Bluetooth speakers or keyboards add delay and will distort your reaction times. The session lasts <b class="durLabel">3 minutes</b>.<br>
+        <span class="zh">請使用筆電內建的喇叭和鍵盤，藍牙喇叭或鍵盤的延遲會讓反應時間失真。全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
     </ul>
 
     <table class="tiers" aria-label="Outcome by reaction time">
@@ -115,7 +115,7 @@
       <button id="soundBtn" class="secondary">🔊 Sound check (mosquito + snore)</button>
       <button id="startBtn">Start (full screen)</button>
     </div>
-    <p class="note" style="margin-top:14px">Use headphones or speakers — the buzz is part of the experience.
+    <p class="note" style="margin-top:14px">Turn the laptop volume up — the sound is the whole game.
       Stay on this tab; switching windows will distort the timing.</p>
   </div>
 </div>
