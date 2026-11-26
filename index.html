@@ -66,18 +66,16 @@
 <div id="startScreen" class="overlay">
   <div class="card">
     <h1>Night <span>Bite</span> 🦟</h1>
-    <p class="sub">A mosquito-swatting Psychomotor Vigilance Test (PVT) &nbsp;·&nbsp; 打蚊子警覺測驗</p>
+    <p class="sub">An auditory Psychomotor Vigilance Test (PVT) with a snoring roommate &nbsp;·&nbsp; 聽覺版打蚊子警覺測驗</p>
 
-    <h2>Choose a night · 選擇模式</h2>
+    <h2>Settings · 設定</h2>
     <div class="modes">
-      <label class="mode"><input type="radio" name="mode" value="visual"> <b>🪔 Lamp on</b> — watch for the mosquito landing on your hand (visual)<br>
-        <span class="zh">檯燈下：看到蚊子停在手上就拍（視覺）</span></label>
-      <label class="mode"><input type="radio" name="mode" value="audio"> <b>🌑 Lights off</b> — listen for the mosquito whining at your ear (auditory)<br>
-        <span class="zh">關燈睡覺：聽到耳邊蚊子聲就拍（聽覺）</span></label>
+      <label class="mode"><input type="checkbox" id="snoreBox" checked> <b>😴 Roommate snoring</b> (cocktail-party distractor, left side)<br>
+        <span class="zh">室友在你左邊打呼（不規則），你要從中專心聽出右耳邊的蚊子聲</span></label>
     </div>
 
     <h2>How to play · 玩法</h2>
-    <ul id="howVisual">
+    <ul id="howVisual" class="hidden">
       <li>It is late at night. Your hand rests under a desk lamp. A mosquito is buzzing somewhere in the dark.<br>
         <span class="zh">深夜，你的手放在檯燈下，蚊子在黑暗中嗡嗡飛。</span></li>
       <li>The moment the mosquito <b>lands in the lamp light</b>, press <kbd>SPACE</kbd> (or tap the screen) to swat it — as fast as you can.<br>
@@ -87,9 +85,9 @@
       <li>Keep your eyes on the lamp light. The session lasts <b class="durLabel">3 minutes</b>.<br>
         <span class="zh">眼睛盯著燈光處，全程 <span class="durLabelZh">3 分鐘</span>。</span></li>
     </ul>
-    <ul id="howAudio" class="hidden">
-      <li>The lights are off and you are trying to sleep. A mosquito is flying somewhere far away in the room.<br>
-        <span class="zh">燈關了，你正要睡覺，蚊子在房間遠處飛。</span></li>
+    <ul id="howAudio">
+      <li>The lights are off and you are trying to sleep. A mosquito is flying somewhere far away in the room, and your roommate on the left is snoring.<br>
+        <span class="zh">燈關了，你正要睡覺，蚊子在房間遠處飛，左邊的室友在打呼。</span></li>
       <li>The moment you hear the <b>loud whine right at your ear</b>, press <kbd>SPACE</kbd> (or tap) to swat it — as fast as you can. Nothing changes on screen; use your ears only.<br>
         <span class="zh">一聽到耳邊突然很大聲的「嗡——」，立刻按空白鍵拍下去。畫面不會有任何提示，只能靠耳朵。</span></li>
       <li>Don’t swat before you hear it — you will only slap your own ear.<br>
@@ -109,7 +107,7 @@
     <div class="row">
       <label for="pid">Participant ID</label>
       <input id="pid" type="text" placeholder="e.g. P01" autocomplete="off">
-      <button id="soundBtn" class="secondary">🔊 Sound check</button>
+      <button id="soundBtn" class="secondary">🔊 Sound check (mosquito + snore)</button>
       <button id="startBtn">Start (full screen)</button>
     </div>
     <p class="note" style="margin-top:14px">Use headphones or speakers — the buzz is part of the experience.
@@ -136,6 +134,11 @@
         <p class="note" style="margin-top:10px">RT metrics use all responses with RT ≥ 100 ms
           (valid + lapses). 1/RT is in 1/seconds (= 1000 / RT ms). Lapse threshold 500 ms.</p>
       </div>
+    </div>
+
+    <div id="snoreSection">
+      <h2>Cocktail-party check: was the roommate snoring when the mosquito arrived?</h2>
+      <table class="res" id="snoreTable"></table>
     </div>
 
     <h2>Reaction time across the session</h2>
@@ -175,7 +178,7 @@ const params   = new URLSearchParams(location.search);
 const SESSION_MS = (parseFloat(params.get("dur")) || 180) * 1000;
 const ISI_MIN = 1000, ISI_MAX = 3000;
 const MIN_RT = 100, LAPSE_RT = 500, KILL_RT = 300, TIMEOUT_MS = 30000;
-let MODE = params.get("mode") === "audio" ? "audio" : "visual";   // visual = lamp, audio = lights off
+let MODE = "audio";   // this edition is auditory only (visual drawing code kept for reference)
 const FEEDBACK_MS = 1000;
 
 /* ---------- state ---------- */
@@ -260,6 +263,7 @@ function scheduleWhine(){
   const ac = A.ctx, t0 = ac.currentTime + 0.03, gg = A.whineGain.gain;
   gg.cancelScheduledValues(ac.currentTime); gg.setValueAtTime(0, ac.currentTime);
   gg.setValueAtTime(0, t0); gg.linearRampToValueAtTime(0.22, t0 + 0.005);
+  S.onsetCtx = t0;
   A.buzzGain.gain.cancelScheduledValues(ac.currentTime); A.buzzGain.gain.setValueAtTime(A.buzzGain.gain.value, ac.currentTime);
   A.buzzGain.gain.setValueAtTime(0, t0);
   const ts = ac.getOutputTimestamp ? ac.getOutputTimestamp() : null;
@@ -299,6 +303,105 @@ function slapSound(){
   o.connect(og).connect(ac.destination); o.start(t); o.stop(t+0.16);
 }
 
+/* =====================================================================
+   Snoring roommate (cocktail-party distractor)
+   • every snore is synthesised fresh: duration, pitch, pitch contour, loudness,
+     roughness and resonance are all randomised, plus irregular breathing gaps,
+     occasional pauses, double snores and snorts, and a slow loudness drift
+   • timing is independent of the mosquito ISI (cannot cue the stimulus)
+   • low-passed at 900 Hz and panned left; the whine is high-band at the right
+     ear, so the snore distracts (informational) rather than masks (energetic)
+   ===================================================================== */
+let SNORE_ON = params.get("snore") !== "0";
+const SN = { bus:null, timer:null, nextT:0, level:0.8, intervals:[], noise:null };
+function makeSnoreBus(ac, dest){
+  const lp = ac.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 900; lp.Q.value = 0.5;
+  const lp2 = ac.createBiquadFilter(); lp2.type = "lowpass"; lp2.frequency.value = 900; lp2.Q.value = 0.5;
+  const g = ac.createGain(); g.gain.value = 1;
+  lp.connect(lp2).connect(g);
+  if (ac.createStereoPanner){ const pn = ac.createStereoPanner(); pn.pan.value = -0.7; g.connect(pn).connect(dest); }
+  else g.connect(dest);
+  const len = ac.sampleRate * 2, nb = ac.createBuffer(1, len, ac.sampleRate), d = nb.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random()*2 - 1;
+  return { input: lp, out: g, noise: nb };
+}
+// one snore sound (inhale flutter + breath noise), fully randomised
+function snoreVoice(ac, bus, t, dur, amp, opt = {}){
+  const f0 = opt.f0 ?? rand(32, 95), f1 = f0 * rand(0.75, 1.3);
+  const o = ac.createOscillator(); o.type = Math.random() < 0.5 ? "sawtooth" : "square";
+  o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f1, t + dur);
+  const res = ac.createBiquadFilter(); res.type = "lowpass"; res.frequency.value = opt.cutoff ?? rand(250, 750); res.Q.value = rand(1.5, 7);
+  const env = ac.createGain(); env.gain.setValueAtTime(0, t);
+  const atk = dur * rand(0.2, 0.45), mid = t + dur * rand(0.45, 0.7);
+  env.gain.linearRampToValueAtTime(amp, t + atk);
+  env.gain.linearRampToValueAtTime(amp * rand(0.55, 1.0), mid);
+  env.gain.linearRampToValueAtTime(0, t + dur);
+  const rough = rand(0.15, 0.85);                         // soft-palate flutter (amplitude modulation)
+  const am = ac.createGain(); am.gain.value = 1 - rough/2;
+  const lfo = ac.createOscillator(); lfo.frequency.value = rand(16, 42);
+  const lfoG = ac.createGain(); lfoG.gain.value = rough/2; lfo.connect(lfoG).connect(am.gain);
+  o.connect(res).connect(env).connect(am).connect(bus.input);
+  const nz = ac.createBufferSource(); nz.buffer = bus.noise; nz.loop = true;
+  const nf = ac.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = rand(300, 700); nf.Q.value = 0.8;
+  const ng = ac.createGain(); ng.gain.setValueAtTime(0, t);
+  ng.gain.linearRampToValueAtTime(amp * rand(0.15, 0.4), t + atk); ng.gain.linearRampToValueAtTime(0, t + dur);
+  nz.connect(nf).connect(ng).connect(am);
+  const off = rand(0, 1.5);
+  o.start(t); lfo.start(t); nz.start(t, off); o.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); nz.stop(t + dur + 0.05);
+}
+function breathOut(ac, bus, t, dur, amp){
+  const nz = ac.createBufferSource(); nz.buffer = bus.noise; nz.loop = true;
+  const nf = ac.createBiquadFilter(); nf.type = "bandpass"; nf.frequency.value = rand(250, 650); nf.Q.value = rand(0.5, 1.2);
+  const g = ac.createGain(); g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(amp, t + dur*0.3); g.gain.linearRampToValueAtTime(0, t + dur);
+  nz.connect(nf).connect(g).connect(bus.input); nz.start(t, rand(0, 1.5)); nz.stop(t + dur + 0.05);
+  if (Math.random() < 0.15){                               // occasional lip "puff"
+    const o = ac.createOscillator(); o.frequency.value = rand(20, 30);
+    const og = ac.createGain(); og.gain.setValueAtTime(0, t + dur*0.5); og.gain.linearRampToValueAtTime(amp*0.8, t + dur*0.55); og.gain.linearRampToValueAtTime(0, t + dur*0.75);
+    o.connect(og).connect(bus.input); o.start(t + dur*0.5); o.stop(t + dur*0.8);
+  }
+}
+// schedule one irregular breathing cycle starting at t; returns the start of the next cycle
+function snoreCycle(ac, bus, t, log){
+  SN.level = Math.min(1.0, Math.max(0.35, SN.level + rand(-0.12, 0.12)));   // slow loudness drift
+  const r = Math.random();
+  if (r < 0.08) return t + rand(3.5, 7.5);                 // breathing pause (silence)
+  const dur = rand(0.7, 1.9), amp = 0.11 * SN.level * rand(0.5, 1.0);
+  snoreVoice(ac, bus, t, dur, amp); log && log(t, t + dur);
+  let end = t + dur;
+  if (r < 0.18){                                            // double snore
+    const d2 = rand(0.35, 0.8), t2 = end + rand(0.08, 0.25);
+    snoreVoice(ac, bus, t2, d2, amp * rand(0.6, 1.1)); log && log(t2, t2 + d2); end = t2 + d2;
+  } else if (r < 0.26){                                     // snort
+    const d3 = rand(0.15, 0.3), t3 = end + rand(0.02, 0.1);
+    snoreVoice(ac, bus, t3, d3, Math.min(0.13, amp * 1.4), { f0: rand(45, 85), cutoff: rand(500, 800) }); log && log(t3, t3 + d3); end = t3 + d3;
+  }
+  const ex = rand(0.6, 1.5), exStart = end + rand(0.1, 0.45);
+  breathOut(ac, bus, exStart, ex, 0.03 * SN.level * rand(0.4, 1.0));
+  return exStart + ex + rand(0.3, 1.7);
+}
+function startSnoring(){
+  if (!SNORE_ON || !A.ctx) return;
+  const ac = A.ctx;
+  if (!SN.bus) SN.bus = makeSnoreBus(ac, ac.destination);
+  SN.bus.out.gain.cancelScheduledValues(ac.currentTime); SN.bus.out.gain.setValueAtTime(1, ac.currentTime);
+  SN.intervals = []; SN.level = rand(0.6, 0.9);
+  SN.nextT = ac.currentTime + rand(0.3, 1.5);
+  const tick = () => {
+    while (SN.nextT < ac.currentTime + 1.5) SN.nextT = snoreCycle(ac, SN.bus, SN.nextT, (a, b) => SN.intervals.push([a, b]));
+    SN.timer = setTimeout(tick, 250);
+  };
+  tick();
+}
+function stopSnoring(){
+  clearTimeout(SN.timer); SN.timer = null;
+  if (SN.bus && A.ctx){ const t = A.ctx.currentTime; SN.bus.out.gain.cancelScheduledValues(t); SN.bus.out.gain.setTargetAtTime(0, t, 0.05); }
+}
+function snoringAt(ctxTime){
+  if (!SNORE_ON) return "";
+  return SN.intervals.some(([a, b]) => ctxTime >= a && ctxTime <= b) ? 1 : 0;
+}
+
 /* ---------- trial flow ---------- */
 const rand = (a,b) => a + Math.random()*(b-a);
 function elapsed(now){ return now - S.sessionStart; }
@@ -308,6 +411,7 @@ function startSession(){
   S.trials = []; S.bumps = []; S.splats = []; S.flyAway = null; S.fb = null;
   S.sessionStart = performance.now();
   document.body.classList.add("playing");
+  startSnoring();
   startISI(S.sessionStart);
 }
 function startISI(now){
@@ -318,6 +422,7 @@ function startISI(now){
 }
 function logTrial(o){
   o.trial = S.trials.length + 1;
+  o.snore = (o.status === 2 && o.premature_ms !== "") ? "" : snoringAt(S.onsetCtx);
   S.trials.push(o);
 }
 function respond(t){             // t = event.timeStamp (performance.now time base)
@@ -356,7 +461,7 @@ function showFeedback(t, kind, rt){
   else if (kind !== "fs" && kind !== "anticipation") buzz(false);
 }
 function endSession(){
-  S.phase = "done"; buzz(false); stopWhine();
+  S.phase = "done"; buzz(false); stopWhine(); stopSnoring();
   document.body.classList.remove("playing");
   if (document.fullscreenElement) document.exitFullscreen().catch(()=>{});
   showResults();
@@ -694,7 +799,7 @@ function showResults(){
   const R = computeMetrics(S.trials), m = R.m;
   const pid = document.getElementById("pid").value.trim() || "anonymous";
   document.getElementById("resSub").textContent =
-    `Participant ${pid} · ${MODE === "audio" ? "🌑 Lights off (auditory)" : "🪔 Lamp on (visual)"} · ${new Date().toLocaleString()} · session ${(SESSION_MS/60000).toFixed(1)} min`;
+    `Participant ${pid} · 🌑 Lights off (auditory) · ${SNORE_ON ? "😴 snoring on" : "quiet room"} · ${new Date().toLocaleString()} · session ${(SESSION_MS/60000).toFixed(1)} min`;
   const f2 = x => (x == null || isNaN(x)) ? "–" : x.toFixed(2);
 
   const kills = S.trials.filter(t => t.outcome === "squashed").length;
@@ -723,6 +828,17 @@ function showResults(){
     ["Mean RT (reference)", m ? f2(m.meanRT)+" ms" : "–"], ["Median RT (reference)", m ? f2(m.medianRT)+" ms" : "–"],
   ].map(([a,v]) => `<tr><td>${a}</td><td class="v">${v}</td></tr>`).join("");
 
+  const sec = document.getElementById("snoreSection");
+  sec.classList.toggle("hidden", !SNORE_ON);
+  if (SNORE_ON){
+    const grp = v => S.trials.filter(t => t.snore === v && t.status !== 2);
+    const med = a => { const b = a.map(t => t.rt_ms).sort((x,y) => x-y); if (!b.length) return "–";
+      const q = (b.length-1)/2; return (b[Math.floor(q)] + (b[Math.ceil(q)] - b[Math.floor(q)])*(q - Math.floor(q))).toFixed(1) + " ms"; };
+    const row = (name, a) => `<tr><td>${name}</td><td class="v">${a.length} trials</td><td class="v">median ${med(a)}</td><td class="v">${a.filter(t => t.status === 3).length} lapses</td></tr>`;
+    document.getElementById("snoreTable").innerHTML =
+      row("😴 Roommate snoring at mosquito onset", grp(1)) + row("🤫 Quiet (between snores)", grp(0)) +
+      `<tr><td colspan="4" class="d">Exploratory only: few trials per group, so treat differences as a pilot observation.</td></tr>`;
+  }
   document.getElementById("resultScreen").classList.remove("hidden");
   requestAnimationFrame(() => drawChart(S.trials));
 }
@@ -789,13 +905,13 @@ function stamp(){ const d = new Date(), p = n => String(n).padStart(2,"0");
   return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`; }
 function pidSafe(){ return (document.getElementById("pid").value.trim() || "anonymous").replace(/[^\w-]/g,"_"); }
 document.getElementById("dlTrials").onclick = () => {
-  const head = "trial,mode,status,label,isi_ms,stim_onset_s,rt_ms,premature_ms,outcome";
-  const lines = S.trials.map(t => [t.trial,MODE,t.status,t.label,t.isi_ms,t.onset_s.toFixed(3),t.rt_ms,t.premature_ms,t.outcome].join(","));
+  const head = "trial,mode,snoring_condition,status,label,isi_ms,stim_onset_s,rt_ms,premature_ms,outcome,snoring_at_onset";
+  const lines = S.trials.map(t => [t.trial,MODE,SNORE_ON ? "on" : "off",t.status,t.label,t.isi_ms,t.onset_s.toFixed(3),t.rt_ms,t.premature_ms,t.outcome,t.snore].join(","));
   download(`nightbite_${MODE}_${pidSafe()}_${stamp()}_trials.csv`, [head, ...lines].join("\n"));
 };
 document.getElementById("dlSummary").onclick = () => {
   const R = computeMetrics(S.trials), m = R.m || {};
-  const rows = [["metric","value"],["mode",MODE],["total_trials",R.total],["valid_trials",R.valid],["error_trials",R.fs+R.lapses],
+  const rows = [["metric","value"],["mode",MODE],["snoring",SNORE_ON ? "on" : "off"],["total_trials",R.total],["valid_trials",R.valid],["error_trials",R.fs+R.lapses],
     ["false_starts",R.fs],["lapses",R.lapses],["1_recipRT_per_s",m.recipRT],["2_recipRT500_per_s",m.recipRT500],
     ["3_recipRT_variability_P90_P10",m.recipVar],["4_falseRT_pct",m.falseRT],["5_lapses_n",m.lapses],["5_lapses_pct",m.lapsePct],
     ["6_fastest10_recip_per_s",m.fastest10],["7_slowest10_recip_per_s",m.slowest10],["mean_RT_ms",m.meanRT],["median_RT_ms",m.medianRT]];
@@ -807,19 +923,19 @@ document.getElementById("dlSummary").onclick = () => {
 const mins = SESSION_MS / 60000;
 document.querySelectorAll(".durLabel").forEach(e => e.textContent = mins === 3 ? "3 minutes" : `${+mins.toFixed(2)} minutes`);
 document.querySelectorAll(".durLabelZh").forEach(e => e.textContent = `${+mins.toFixed(2)} 分鐘`);
-function setMode(m){
-  MODE = m;
-  document.querySelector(`input[name=mode][value=${m}]`).checked = true;
-  document.getElementById("howVisual").classList.toggle("hidden", m !== "visual");
-  document.getElementById("howAudio").classList.toggle("hidden", m !== "audio");
-}
-document.querySelectorAll("input[name=mode]").forEach(r => r.addEventListener("change", () => setMode(r.value)));
-setMode(MODE);
+const snoreBox = document.getElementById("snoreBox");
+snoreBox.checked = SNORE_ON;
+snoreBox.addEventListener("change", () => { SNORE_ON = snoreBox.checked; });
 document.getElementById("soundBtn").onclick = () => {
   initAudio(); if (A.ctx.state === "suspended") A.ctx.resume();
   const t = A.ctx.currentTime, gg = A.whineGain.gain;
   gg.cancelScheduledValues(t); gg.setValueAtTime(0, t); gg.linearRampToValueAtTime(0.22, t + 0.005);
   gg.setValueAtTime(0.22, t + 0.7); gg.linearRampToValueAtTime(0, t + 0.72);
+  if (snoreBox.checked){                     // then one sample snore
+    if (!SN.bus) SN.bus = makeSnoreBus(A.ctx, A.ctx.destination);
+    SN.bus.out.gain.setValueAtTime(1, t);
+    snoreVoice(A.ctx, SN.bus, t + 1.1, 1.3, 0.1);
+  }
 };
 document.getElementById("startBtn").onclick = async () => {
   document.getElementById("startScreen").classList.add("hidden");

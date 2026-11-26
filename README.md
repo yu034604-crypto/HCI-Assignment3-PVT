@@ -4,31 +4,43 @@ HCI Assignment 3 (Autumn 2026) – Vigilance and the Psychomotor Vigilance Test 
 
 **Play online:** https://yu034604-crypto.github.io/HCI-Assignment3-PVT/
 
-## Task 2 – Night Bite (`index.html`)
+## Task 2 – Night Bite: Lights Off (`index.html`)
 
-A PVT-based game with two modes (chosen on the start screen, or with `?mode=audio`):
-
-- **Lamp on (visual):** your hand rests under a desk lamp. When the mosquito lands in the lamp light, press **SPACE** (or tap) to swat it.
-- **Lights off (auditory):** the room is dark and nothing changes on screen. When a loud whine suddenly starts at your right ear, press **SPACE** to swat it. Use wired headphones or speakers (Bluetooth adds latency). The RT clock starts when the whine leaves the speakers (onset scheduled with the Web Audio API and mapped to `performance.now()` via `getOutputTimestamp()`).
+An **auditory** PVT game with a cocktail-party distractor. The room is dark and you are trying to sleep.
+A mosquito flies somewhere far away while your roommate on the left is snoring. When a loud whine suddenly
+starts at your **right ear**, press **SPACE** (or tap) to swat it as fast as you can. Nothing changes on screen
+at stimulus onset – the task relies on hearing only.
 
 | Reaction time | Outcome | PVT category |
 |---|---|---|
-| too early / < 100 ms | slapped yourself | false start |
+| too early / < 100 ms | slapped your own ear | false start |
 | 100–299 ms | squashed | valid |
 | 300–499 ms | maimed (flies away with one wing) | valid |
 | ≥ 500 ms | already bitten | lapse |
 
 **PVT mechanics kept from the standard brief PVT**
 
-- Single fixed stimulus (fixed location and size in the visual mode; fixed ear, pitch and loudness in the auditory mode); one response key (simple RT)
-- Random inter-stimulus interval, uniform 1–3 s
-- RT measured in ms from the frame in which the mosquito is first drawn to the input event (`performance.now()` time base)
-- False starts (input during the ISI or RT < 100 ms) are logged; lapses (RT ≥ 500 ms) are still timed
-- 3-minute session, followed by a summary of the 7 PVT metrics from Lecture 6
-  (1/RT, 1/RT500, 1/RT variability, False RT, Lapses, Fastest 10%, Slowest 10%),
-  a reaction-time chart, and CSV export of trial data and summary
+- One stimulus (the near-ear whine: fixed ear, pitch and loudness, 5 ms onset ramp) and one response key → simple RT
+- Random inter-stimulus interval, uniform 1–3 s; 1 s feedback; response window up to 30 s
+- RT is measured from when the whine leaves the speakers (Web Audio onset mapped to `performance.now()` with `getOutputTimestamp()`) to the key event
+- False starts (input before the whine is heard, or RT < 100 ms) are logged; lapses (RT ≥ 500 ms) are still timed
+- 3-minute session, followed by the 7 PVT metrics from Lecture 6
+  (1/RT, 1/RT500, 1/RT variability, False RT, Lapses, Fastest 10%, Slowest 10%), an RT chart and CSV export
 
-**How to run:** open `index.html` in Chrome (no installation needed). Use headphones or speakers.
+**Snoring roommate (cocktail-party effect)**
+
+- Every snore is synthesised anew: duration, pitch and pitch contour, loudness, roughness and resonance are randomised,
+  with irregular breathing gaps, occasional pauses, double snores and snorts, and a slow loudness drift
+- Snore timing is independent of the mosquito ISI, so it cannot cue the stimulus
+- Snoring is low-passed at 900 Hz and panned left; the whine is high-band at the right ear. In an offline render,
+  the loudest snore was ~4.5 dB below the whine overall and ~22 dB below it within the whine's frequency band,
+  so the snore distracts (informational masking) without making the whine inaudible (energetic masking)
+- Each trial records whether the roommate was snoring at mosquito onset; the summary compares RTs for snoring vs quiet onsets
+- Can be switched off on the start screen (or with `?snore=0`) for a quiet-room comparison
+
+**How to run:** open `index.html` in Chrome (no installation needed). Use the computer's built-in keyboard and
+wired headphones or built-in speakers – Bluetooth keyboards and speakers add latency the browser cannot measure
+(in pilot tests, Bluetooth audio added ~120 ms and a Bluetooth keyboard ~75 ms to RTs).
 For a short test, append `?dur=30` to the URL to run a 30-second session.
 
 ## Task 1 – PVT-B analysis (`pvtb_analysis.py`)
